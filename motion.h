@@ -61,6 +61,7 @@
 #include "conf.h"
 #include "stream.h"
 #include "webhttpd.h"
+#include "videosourceplugin.h"
 
 #ifdef HAVE_SDL
 #include "sdl.h"
@@ -207,6 +208,10 @@
 #define UPDATE_REF_FRAME  1
 #define RESET_REF_FRAME   2
 
+#define SECONDARY_TYPE_NONE 0
+#define SECONDARY_TYPE_RAW  1
+#define SECONDARY_TYPE_JPEG 2
+
 #define BUFSIZE_1MEG      (1024 * 1024)
 
 /* Forward declaration, used in track.h */
@@ -214,6 +219,11 @@ struct images;
 
 #include "track.h"
 #include "netcam.h"
+#include "filecam.h"
+
+#ifdef HAVE_MMAL
+#include "mmalcam.h"
+#endif
 
 /* 
  * Structure to hold images information
@@ -237,6 +247,7 @@ struct image_data {
     time_t timestamp;           /* Timestamp when image was captured */
     struct tm timestamp_tm;
     int shot;                   /* Sub second timestamp count */
+    int total_shots;            /* Total shots taken so far */
 
     /* 
      * Movement center to img center distance 
@@ -249,6 +260,9 @@ struct image_data {
     struct coord location;      /* coordinates for center and size of last motion detection*/
 
     int total_labels;
+
+    unsigned char *secondary_image;
+    int secondary_size;
 };
 
 /* 
@@ -279,6 +293,8 @@ struct image_data {
 
 /* date/time drawing, draw.c */
 int draw_text(unsigned char *image, unsigned int startx, unsigned int starty, unsigned int width, const char *text, unsigned int factor);
+int draw_final_image_text(struct context* cnt, struct image_data* imgdata, unsigned int startx, unsigned int starty,
+                            const char *text, unsigned int factor);
 int initialize_chars(void);
 
 struct images {
@@ -309,6 +325,13 @@ struct images {
     int labels_above;
     int labelsize_max;
     int largest_label;
+
+    int secondary_type;
+    int secondary_width;
+    int secondary_height;
+    int secondary_size;
+    float secondary_width_scale;
+    float secondary_height_scale;
 };
 
 /* Contains data for image rotation, see rotate.c. */
@@ -347,9 +370,14 @@ struct context {
     unsigned int log_type;
 
     struct config conf;
+    struct video_source_plugin video_source;
     struct images imgs;
     struct trackoptions track;
     struct netcam_context *netcam;
+    struct filecam_context *filecam;
+#ifdef HAVE_MMAL
+    struct mmalcam_context *mmalcam;
+#endif
     struct image_data *current_image;        /* Pointer to a structure where the image, diffs etc is stored */
     unsigned int new_img;
 
@@ -382,6 +410,7 @@ struct context {
     int postcap;                             /* downcounter, frames left to to send post event */
 
     int shots;
+    int total_shots;
     unsigned int detecting_motion;
     struct tm *currenttime_tm;
     struct tm *eventtime_tm;
