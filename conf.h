@@ -108,6 +108,8 @@ struct config {
     int sql_log_movie;
     int sql_log_timelapse;
     const char *sql_query;
+    const char *sql_event_start_query;
+    const char *sql_file_query;
     const char *database_type;
     const char *database_dbname;
     const char *database_host;
@@ -127,6 +129,7 @@ struct config {
     const char *netcam_keepalive;
     const char *netcam_proxy;
     unsigned int netcam_tolerant_check;
+    unsigned int rtsp_uses_tcp;
     const char *filecam_path;
 #ifdef HAVE_MMAL
     const char *mmalcam_name;

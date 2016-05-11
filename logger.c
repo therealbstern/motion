@@ -212,11 +212,17 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
     /* Next add the user's message. */
     va_start(ap, fmt);
     n += vsnprintf(buf + n, sizeof(buf) - n, fmt, ap);
+    buf[1023] = 0;
 
     /* If errno_flag is set, add on the library error message. */
     if (errno_flag) {
-        strncat(buf, ": ", 1024 - strlen(buf));
-        n += 2;
+        // just knock off 10 characters if we're that close...
+        if (n + 10 > sizeof(buf)) {
+            buf[n - 10] = 0;
+            n -= 10;
+        }
+
+        n += snprintf(buf + n, ": ", sizeof(buf) - n);
         /*
          * This is bad - apparently gcc/libc wants to use the non-standard GNU
          * version of strerror_r, which doesn't actually put the message into
@@ -227,25 +233,25 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
 #warning "* Using XSI-COMPLIANT strerror_r() *"
 #warning "************************************"
         /* XSI-compliant strerror_r() */
-        strerror_r(errno_save, buf + n, sizeof(buf) - n);    /* 2 for the ': ' */
+        strerror_r(errno_save, buf + n, sizeof(buf) - n);
 #else
 #warning "************************************"
 #warning "* Using GNU-COMPLIANT strerror_r() *"
 #warning "************************************"
         /* GNU-specific strerror_r() */
-        strncat(buf, strerror_r(errno_save, msg_buf, sizeof(msg_buf)), 1024 - strlen(buf));
+        snprintf(buf + n, "%s", strerror_r(errno_save, msg_buf, sizeof(msg_buf)), sizeof(buf) - n);
 #endif
     }
 
     if (!log_mode) {
-        strncat(buf, "\n", 1024 - strlen(buf));
+        strncat(buf, "\n", sizeof(buf) - strlen(buf));
         fputs(buf, logfile);
         fflush(logfile);
 
     /* If log_mode, send the message to the syslog. */
     } else {
         syslog(level, "%s", buf);
-        strncat(buf, "\n", 1024 - strlen(buf));
+        strncat(buf, "\n", sizeof(buf) - strlen(buf));
         fputs(buf, stderr);
         fflush(stderr);
     }
@@ -253,4 +259,3 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
     /* Clean up the argument list routine. */
     va_end(ap);
 }
-

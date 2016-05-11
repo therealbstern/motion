@@ -432,9 +432,11 @@ static int put_jpeg_yuv420p_memory(unsigned char *dest_image, int image_size,
 
     cinfo.err = jpeg_std_error(&jerr);  // Errors get written to stderr
 
+    int jpeg_height = height - (height % 16);
+
     jpeg_create_compress(&cinfo);
     cinfo.image_width = width;
-    cinfo.image_height = height;
+    cinfo.image_height = jpeg_height;
     cinfo.input_components = 3;
     jpeg_set_defaults(&cinfo);
 
@@ -460,7 +462,7 @@ static int put_jpeg_yuv420p_memory(unsigned char *dest_image, int image_size,
 
     put_jpeg_exif(&cinfo, cnt, tm, box);
 
-    for (j = 0; j < height; j += 16) {
+    for (j = 0; j < jpeg_height; j += 16) {
         for (i = 0; i < 16; i++) {
             y[i] = input_image + width * (i + j);
 
@@ -1203,7 +1205,7 @@ void preview_save(struct context *cnt)
             else
                 imagepath = (char *)DEF_IMAGEPATH;
 
-            mystrftime(cnt, filename, sizeof(filename), imagepath, &cnt->imgs.preview_image.timestamp_tm, NULL, 0);
+            mystrftime(cnt, filename, sizeof(filename), imagepath, &cnt->imgs.preview_image.timestamp_tm, NULL, 0, 0);
             snprintf(previewname, PATH_MAX, "%s/%s.%s", cnt->conf.filepath, filename, imageext(cnt));
 
             put_image(cnt, previewname, &cnt->imgs.preview_image, FTYPE_IMAGE);

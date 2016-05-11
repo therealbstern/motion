@@ -169,7 +169,8 @@
 #define DEF_TIMELAPSE_MODE      "daily"
 
 /* Do not break this line into two or more. Must be ONE line */
-#define DEF_SQL_QUERY "sql_query insert into security(camera, filename, frame, file_type, time_stamp, event_time_stamp) values('%t', '%f', '%q', '%n', '%Y-%m-%d %T', '%C')"
+#define DEF_SQL_START_QUERY "sql_event_start_query insert into security_events(camera, event_time_stamp) values('%t', '%Y-%m-%d %T')"
+#define DEF_SQL_FILE_QUERY "sql_file_query insert into security_file(camera, event_id, filename, frame, file_type, time_stamp) values('%t', '%e', '%f', '%q', '%n', '%Y-%m-%d %T')"
 
 
 /* OUTPUT Image types */
@@ -384,6 +385,7 @@ struct context {
     int locate_motion_mode;
     int locate_motion_style;
     int process_thisframe;
+    int motion_frames;
     struct rotdata rotate_data;              /* rotation data is thread-specific */
 
     int noise;
@@ -447,6 +449,7 @@ struct context {
 
 #ifdef HAVE_MYSQL
     MYSQL *database;
+    my_ulonglong current_event_id;
 #endif
 
 #ifdef HAVE_PGSQL
@@ -480,6 +483,6 @@ void * mymalloc(size_t);
 void * myrealloc(void *, size_t, const char *);
 FILE * myfopen(const char *, const char *, size_t);
 int myfclose(FILE *);
-size_t mystrftime(const struct context *, char *, size_t, const char *, const struct tm *, const char *, int);
+size_t mystrftime(const struct context *, char *, size_t, const char *, const struct tm *, const char *, int, unsigned long long);
 int create_path(const char *);
 #endif /* _INCLUDE_MOTION_H */

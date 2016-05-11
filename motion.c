@@ -324,9 +324,9 @@ static void sig_handler(int signo)
         if (cnt_list) {
             i = -1;
             while (cnt_list[++i]) {
-                if (cnt_list[i]->conf.snapshot_interval) 
+                if (cnt_list[i]->conf.snapshot_interval) {
                     cnt_list[i]->snapshot = 1;
-                
+                }
             }
         }
         break;
@@ -478,7 +478,7 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              * on_motion_detected_commend so it must be done now.
              */
             mystrftime(cnt, cnt->text_event_string, sizeof(cnt->text_event_string),
-                       cnt->conf.text_event, cnt->eventtime_tm, NULL, 0);
+                       cnt->conf.text_event, cnt->eventtime_tm, NULL, 0, 0);
 
             /* EVENT_FIRSTMOTION triggers on_event_start_command and event_ffmpeg_newfile */
             event(cnt, EVENT_FIRSTMOTION, NULL, NULL, img, &img->timestamp_tm);
@@ -548,7 +548,7 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
         if ((cnt->imgs.image_ring[cnt->imgs.image_ring_out].flags & (IMAGE_SAVE | IMAGE_SAVED)) != IMAGE_SAVE)
             break;
 
-        /* Set inte global cotext that we are working with this image */
+        /* Set in the global context that we are working with this image */
         cnt->current_image = &cnt->imgs.image_ring[cnt->imgs.image_ring_out];
 
         if (cnt->imgs.image_ring[cnt->imgs.image_ring_out].shot < cnt->conf.frame_limit) {
@@ -633,7 +633,7 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
         /* Mark the image as saved */
         cnt->imgs.image_ring[cnt->imgs.image_ring_out].flags |= IMAGE_SAVED;
 
-        /* Store it as a preview image, only if it have motion */
+        /* Store it as a preview image, only if it has motion */
         if (cnt->imgs.image_ring[cnt->imgs.image_ring_out].flags & IMAGE_MOTION) {
             /* Check for most significant preview-shot when output_pictures=best */
             if (cnt->new_img & NEWIMG_BEST) {
@@ -867,6 +867,7 @@ static int motion_init(struct context *cnt)
         if ((!strcmp(cnt->conf.database_type, "mysql")) && (cnt->conf.database_dbname)) { 
             // close database to be sure that we are not leaking
             mysql_close(cnt->database);
+	    cnt->current_event_id = 0;
 
             cnt->database = (MYSQL *) mymalloc(sizeof(MYSQL));
             mysql_init(cnt->database);
@@ -1091,6 +1092,7 @@ static void motion_cleanup(struct context *cnt)
 #ifdef HAVE_MYSQL
         if ( (!strcmp(cnt->conf.database_type, "mysql")) && (cnt->conf.database_dbname)) {    
             mysql_close(cnt->database); 
+	    cnt->current_event_id = 0;
         }
 #endif /* HAVE_MYSQL */
 
@@ -1267,9 +1269,13 @@ static void *motion_loop(void *arg)
          * via the http remote control we need to re-size the ring buffer
          */
         frame_buffer_size = cnt->conf.pre_capture + cnt->conf.minimum_motion_frames;
+        if (frame_buffer_size < 1) {
+            frame_buffer_size = 1;
+        }
 
-        if (cnt->imgs.image_ring_size != frame_buffer_size) 
+        if (cnt->imgs.image_ring_size != frame_buffer_size) {
             image_ring_resize(cnt, frame_buffer_size);
+        }
         
         /* Get time for current frame */
         cnt->currenttime = time(NULL);
@@ -1296,7 +1302,7 @@ static void *motion_loop(void *arg)
                     get_image = 1;
             } else {
                 get_image = 1;
-            }    
+            }
         }
 
 
@@ -1799,13 +1805,17 @@ static void *motion_loop(void *arg)
 
         /***** MOTION LOOP - ACTIONS AND EVENT CONTROL SECTION *****/
 
-            if (cnt->current_image->diffs > cnt->threshold) {
-                /* flag this image, it have motion */
-                cnt->current_image->flags |= IMAGE_MOTION;
-                cnt->lightswitch_framecounter++; /* micro lightswitch */
-            } else { 
-                cnt->lightswitch_framecounter = 0;
-            }    
+            if (cnt->process_thisframe) {
+                if (cnt->current_image->diffs > cnt->threshold) {
+                    /* flag this image, it have motion */
+                    cnt->current_image->flags |= IMAGE_MOTION;
+                    cnt->lightswitch_framecounter++; /* micro lightswitch */
+                    cnt->motion_frames++;
+                } else {
+                    cnt->lightswitch_framecounter = 0;
+                    cnt->motion_frames = 0;
+                }
+            }
 
             /* 
              * If motion has been detected we take action and start saving
@@ -3285,6 +3295,14 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                     ++pos_userformat;
                 break;
 
+            case 'w': // picture width
+                sprintf(tempstr, "%d", cnt->imgs.width);
+                break;
+
+            case 'h': // picture height
+                sprintf(tempstr, "%d", cnt->imgs.height);
+                break;
+
             case 'f': // filename -- or %fps
                 if ((*(pos_userformat+1) == 'p') && (*(pos_userformat+2) == 's')) {
                     sprintf(tempstr, "%d", cnt->movie_fps);
@@ -3301,6 +3319,13 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
             case 'n': // sqltype
                 if (sqltype)
                     sprintf(tempstr, "%d", sqltype);
+                else
+                    ++pos_userformat;
+                break;
+
+            case 'e': // event_id
+                if (event_id)
+                    sprintf(tempstr, "%llu", event_id);
                 else
                     ++pos_userformat;
                 break;

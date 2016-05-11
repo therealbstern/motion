@@ -2026,6 +2026,11 @@ static void *netcam_handler_loop(void *arg)
                     MOTION_LOG(ERR, TYPE_NETCAM, NO_ERRNO, "%s: Trying to re-connect");
                 
             }
+            /* Attempt to re-connect to rtsp server */
+            else if (netcam->rtsp) {
+                MOTION_LOG(ERR, TYPE_NETCAM, NO_ERRNO, "%s: Trying to re-connect to rtsp server");
+                netcam_reconnect_rtsp(netcam);
+            }
             continue;
         }
         /*
@@ -2712,16 +2717,15 @@ int netcam_next(struct context *cnt, unsigned char *image)
     	memcpy(image, netcam->latest->ptr, netcam->latest->used);
     	return 0;
     }
-
     /*
      * If an error occurs in the JPEG decompression which follows this,
      * jpeglib will return to the code within this 'if'.  Basically, our
      * approach is to just return a NULL (failed) to the caller (an
      * error message has already been produced by the libjpeg routines).
      */
-    if (setjmp(netcam->setjmp_buffer)) 
+    if (setjmp(netcam->setjmp_buffer))
         return NETCAM_GENERAL_ERROR | NETCAM_JPEG_CONV_ERROR;
-    
+
     /* If there was no error, process the latest image buffer. */
     return netcam_proc_jpeg(netcam, image);
 }
@@ -2893,7 +2897,7 @@ int netcam_start(struct context *cnt)
 #ifdef have_av_get_media_type_string        
     } else if ((url.service) && (!strcmp(url.service, "rtsp"))) {
         MOTION_LOG(INF, TYPE_NETCAM, NO_ERRNO, "%s: now calling"
-                    " netcam_setup_rtsp()");
+            " netcam_setup_rtsp()");
 
         retval = netcam_setup_rtsp(netcam, &url);
 #endif        
@@ -2930,7 +2934,7 @@ int netcam_start(struct context *cnt)
         */
         if (setjmp(netcam->setjmp_buffer)) {
             MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: libjpeg decompression failure "
-                       "on first frame - giving up!");
+                "on first frame - giving up!");
             return -1;
         }
 
@@ -2944,13 +2948,13 @@ int netcam_start(struct context *cnt)
         */
         if (netcam->width % 8) {
             MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: netcam image width (%d)"
-                       " is not modulo 8", netcam->width);
+                " is not modulo 8", netcam->width);
             return -3;
         }
 
         if (netcam->height % 8) {
             MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: netcam image height (%d)"
-                       " is not modulo 8", netcam->height);
+                " is not modulo 8", netcam->height);
             return -3;
         }
 #ifdef have_av_get_media_type_string        
