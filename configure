@@ -625,7 +625,7 @@ BIN_PATH
 EGREP
 GREP
 CPP
-RTPS_OBJ
+RTSP_OBJ
 FFMPEG_OBJ
 SDL_OBJ
 VIDEO
@@ -4452,7 +4452,7 @@ $as_echo "not found" >&6; }
         FFMPEG_OBJ="ffmpeg.o"
 
 
-        RTPS_OBJ="netcam_rtsp.o"
+        RTSP_OBJ="netcam_rtsp.o"
 
 
         { $as_echo "$as_me:${as_lineno-$LINENO}: checking file_protocol is defined in ffmpeg ?" >&5

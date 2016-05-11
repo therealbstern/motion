@@ -529,8 +529,8 @@ if test "${FFMPEG_OK}" = "found"; then
         FFMPEG_OBJ="ffmpeg.o"
         AC_SUBST(FFMPEG_OBJ)
 
-        RTPS_OBJ="netcam_rtsp.o"
-        AC_SUBST(RTPS_OBJ)
+        RTSP_OBJ="netcam_rtsp.o"
+        AC_SUBST(RTSP_OBJ)
 
         AC_MSG_CHECKING([file_protocol is defined in ffmpeg ?])
         saved_CFLAGS=$CFLAGS
