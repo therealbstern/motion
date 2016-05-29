@@ -177,7 +177,7 @@ static void put_direntry(struct tiff_writing *into, const char *data, unsigned l
     } else {
 	    /* Longer entries are stored out-of-line */
 	    unsigned offset = into->data_offset;
-	
+
         while ((offset & 0x03) != 0) {  /* Alignment */
 	        into->base[offset] = 0;
 	        offset ++;
@@ -324,7 +324,7 @@ static void put_jpeg_exif(j_compress_ptr cinfo,
 
     JOCTET *marker = malloc(buffer_size);
     memcpy(marker, exif_marker_start, 14); /* EXIF and TIFF headers */
-    
+
     struct tiff_writing writing = (struct tiff_writing) {
 	.base = marker + 6, /* base address for intra-TIFF offsets */
 	.buf = marker + 14, /* current write position */
@@ -338,10 +338,10 @@ static void put_jpeg_exif(j_compress_ptr cinfo,
 
     if (description)
 	    put_stringentry(&writing, TIFF_TAG_IMAGE_DESCRIPTION, description, 0);
-    
+
     if (datetime)
 	    put_stringentry(&writing, TIFF_TAG_DATETIME, datetime, 1);
-    
+
     if (ifd1_tagcount > 0) {
 	    /* Offset of IFD1 - TIFF header + IFD0 size. */
 	    unsigned ifd1_offset = 8 + 6 + ( 12 * ifd0_tagcount );
@@ -369,10 +369,10 @@ static void put_jpeg_exif(j_compress_ptr cinfo,
 
 	    if (datetime)
 	        put_stringentry(&writing, EXIF_TAG_ORIGINAL_DATETIME, datetime, 1);
-	    
+
         if (box)
 	        put_subjectarea(&writing, box);
-	    
+
         if (subtime)
 	        put_stringentry(&writing, EXIF_TAG_ORIGINAL_DATETIME_SS, subtime, 0);
 
@@ -392,9 +392,8 @@ static void put_jpeg_exif(j_compress_ptr cinfo,
     /* EXIF data lives in a JPEG APP1 marker */
     jpeg_write_marker(cinfo, JPEG_APP0 + 1, marker, marker_len);
 
-    if (description)
-	    free(description);
-    
+    free(description);
+
     free(marker);
 }
 
@@ -432,11 +431,9 @@ static int put_jpeg_yuv420p_memory(unsigned char *dest_image, int image_size,
 
     cinfo.err = jpeg_std_error(&jerr);  // Errors get written to stderr
 
-    int jpeg_height = height - (height % 16);
-
     jpeg_create_compress(&cinfo);
     cinfo.image_width = width;
-    cinfo.image_height = jpeg_height;
+    cinfo.image_height = height;
     cinfo.input_components = 3;
     jpeg_set_defaults(&cinfo);
 
@@ -455,21 +452,30 @@ static int put_jpeg_yuv420p_memory(unsigned char *dest_image, int image_size,
 
     jpeg_set_quality(&cinfo, quality, TRUE);
     cinfo.dct_method = JDCT_FASTEST;
-
+    
     _jpeg_mem_dest(&cinfo, dest_image, image_size);  // Data written to mem
+    
 
     jpeg_start_compress(&cinfo, TRUE);
 
     put_jpeg_exif(&cinfo, cnt, tm, box);
-
-    for (j = 0; j < jpeg_height; j += 16) {
+    
+    /* If the image is not a multiple of 16, this overruns the buffers
+     * we'll just pad those last bytes with zeros
+     */
+    for (j = 0; j < height; j += 16) {
         for (i = 0; i < 16; i++) {
-            y[i] = input_image + width * (i + j);
-
-            if (i % 2 == 0) {
-                cb[i / 2] = input_image + width * height + width / 2 * ((i + j) /2);
-                cr[i / 2] = input_image + width * height + width * height / 4 + width / 2 * ((i + j) / 2);
-            }
+            if ((width * (i + j)) < (width * height)) {
+                y[i] = input_image + width * (i + j);
+                if (i % 2 == 0) {
+                    cb[i / 2] = input_image + width * height + width / 2 * ((i + j) /2);
+                    cr[i / 2] = input_image + width * height + width * height / 4 + width / 2 * ((i + j) / 2);                
+                }
+            } else {
+                y[i] = 0x00;
+                cb[i] = 0x00;
+                cr[i] = 0x00;
+            }    
         }
         jpeg_write_raw_data(&cinfo, data, 16);
     }
@@ -597,12 +603,18 @@ static void put_jpeg_yuv420p_file(FILE *fp,
 
     for (j = 0; j < height; j += 16) {
         for (i = 0; i < 16; i++) {
-            y[i] = image + width * (i + j);
-            if (i % 2 == 0) {
-                cb[i / 2] = image + width * height + width / 2 * ((i + j) / 2);
-                cr[i / 2] = image + width * height + width * height / 4 + width / 2 * ((i + j) / 2);
-            }
-        }
+            if ((width * (i + j)) < (width * height)) {
+                y[i] = image + width * (i + j);
+                if (i % 2 == 0) {
+                    cb[i / 2] = image + width * height + width / 2 * ((i + j) / 2);
+                    cr[i / 2] = image + width * height + width * height / 4 + width / 2 * ((i + j) / 2);
+                }
+            } else {
+                y[i] = 0x00;
+                cb[i] = 0x00;
+                cr[i] = 0x00;
+            }        
+        }    
         jpeg_write_raw_data(&cinfo, data, 16);
     }
 
@@ -681,7 +693,6 @@ static void put_ppm_bgr24_file(FILE *picture, unsigned char *image, int width, i
     unsigned char *u = image + width * height;
     unsigned char *v = u + (width * height) / 4;
     int r, g, b;
-    int warningkiller;
     unsigned char rgb[3];
 
     /*
@@ -724,7 +735,7 @@ static void put_ppm_bgr24_file(FILE *picture, unsigned char *image, int width, i
                 v++;
             }
             /* ppm is rgb not bgr */
-            warningkiller = fwrite(rgb, 1, 3, picture);
+            fwrite(rgb, 1, 3, picture);
         }
         if (y & 1) {
             u -= width / 2;
@@ -882,15 +893,15 @@ void overlay_largest_label(struct context *cnt, unsigned char *out)
  * Returns the dest_image_size if successful. Otherwise 0.
  */
 int put_picture_memory(struct context *cnt, unsigned char* dest_image, int image_size,
-                       unsigned char *image, int width, int height, int quality)
+                       unsigned char *image, int quality)
 {
     switch (cnt->imgs.type) {
     case VIDEO_PALETTE_YUV420P:
         return put_jpeg_yuv420p_memory(dest_image, image_size, image,
-                                       width, height, quality, cnt, &(cnt->current_image->timestamp_tm), &(cnt->current_image->location));
+                                       cnt->imgs.width, cnt->imgs.height, quality, cnt, &(cnt->current_image->timestamp_tm), &(cnt->current_image->location));
     case VIDEO_PALETTE_GREY:
         return put_jpeg_grey_memory(dest_image, image_size, image,
-                                    width, height, quality);
+                                    cnt->imgs.width, cnt->imgs.height, quality);
     default:
         MOTION_LOG(WRN, TYPE_ALL, NO_ERRNO, "%s: Unknow image type %d",
                    cnt->imgs.type);
@@ -918,24 +929,6 @@ void put_picture_fd(struct context *cnt, FILE *picture, unsigned char *image, in
     }
 }
 
-void put_sized_picture_fd(struct context *cnt, FILE *picture, unsigned char *image, int width, int height, int quality)
-{
-    if (cnt->imgs.picture_type == IMAGE_TYPE_PPM) {
-        put_ppm_bgr24_file(picture, image, width, height);
-    } else {
-        switch (cnt->imgs.type) {
-        case VIDEO_PALETTE_YUV420P:
-            put_jpeg_yuv420p_file(picture, image, width, height, quality, cnt, &(cnt->current_image->timestamp_tm), &(cnt->current_image->location));
-            break;
-        case VIDEO_PALETTE_GREY:
-            put_jpeg_grey_file(picture, image, width, height, quality);
-            break;
-        default:
-            MOTION_LOG(WRN, TYPE_ALL, NO_ERRNO, "%s: Unknow image type %d",
-                       cnt->imgs.type);
-        }
-    }
-}
 
 void put_picture(struct context *cnt, char *file, unsigned char *image, int ftype)
 {
@@ -959,58 +952,6 @@ void put_picture(struct context *cnt, char *file, unsigned char *image, int ftyp
     }
 
     put_picture_fd(cnt, picture, image, cnt->conf.quality);
-    myfclose(picture);
-    event(cnt, EVENT_FILECREATE, NULL, file, (void *)(unsigned long)ftype, NULL);
-}
-
-void put_sized_picture(struct context *cnt, char *file, unsigned char *image, int width, int height, int ftype)
-{
-    FILE *picture;
-
-    picture = myfopen(file, "w", BUFSIZE_1MEG);
-    if (!picture) {
-        /* Report to syslog - suggest solution if the problem is access rights to target dir. */
-        if (errno ==  EACCES) {
-            MOTION_LOG(ERR, TYPE_ALL, SHOW_ERRNO,
-                       "%s: Can't write picture to file %s - check access rights to target directory\n"
-                       "Thread is going to finish due to this fatal error", file);
-            cnt->finish = 1;
-            cnt->restart = 0;
-            return;
-        } else {
-            /* If target dir is temporarily unavailable we may survive. */
-            MOTION_LOG(ERR, TYPE_ALL, SHOW_ERRNO, "%s: Can't write picture to file %s", file);
-            return;
-        }
-    }
-
-    put_sized_picture_fd(cnt, picture, image, width, height, cnt->conf.quality);
-    myfclose(picture);
-    event(cnt, EVENT_FILECREATE, NULL, file, (void *)(unsigned long)ftype, NULL);
-}
-
-void put_encoded_picture(struct context *cnt, char *file, unsigned char *image, int size, int ftype)
-{
-    FILE *picture;
-
-    picture = myfopen(file, "w", BUFSIZE_1MEG);
-    if (!picture) {
-        /* Report to syslog - suggest solution if the problem is access rights to target dir. */
-        if (errno ==  EACCES) {
-            MOTION_LOG(ERR, TYPE_ALL, SHOW_ERRNO,
-                       "%s: Can't write picture to file %s - check access rights to target directory\n"
-                       "Thread is going to finish due to this fatal error", file);
-            cnt->finish = 1;
-            cnt->restart = 0;
-            return;
-        } else {
-            /* If target dir is temporarily unavailable we may survive. */
-            MOTION_LOG(ERR, TYPE_ALL, SHOW_ERRNO, "%s: Can't write picture to file %s", file);
-            return;
-        }
-    }
-
-    fwrite(image, size, 1, picture);
     myfclose(picture);
     event(cnt, EVENT_FILECREATE, NULL, file, (void *)(unsigned long)ftype, NULL);
 }
@@ -1129,25 +1070,6 @@ void put_fixed_mask(struct context *cnt, const char *file)
 }
 
 /**
- * put_image
- *      save an image to a file, picking appropriate buffer and format based on app configuration.
- */
-void put_image(struct context *cnt, char* fullfilename, struct image_data * imgdat, int ftype)
-{
-    if (imgdat->secondary_image && cnt->conf.output_secondary_pictures) {
-        if (cnt->imgs.secondary_type == SECONDARY_TYPE_RAW) {
-            put_sized_picture(cnt, fullfilename, imgdat->secondary_image, cnt->imgs.secondary_width, cnt->imgs.secondary_height, ftype);
-        }
-        else if (cnt->imgs.secondary_type == SECONDARY_TYPE_JPEG) {
-            put_encoded_picture(cnt, fullfilename, imgdat->secondary_image, imgdat->secondary_size, ftype);
-        }
-    }
-    else {
-        put_picture(cnt, fullfilename, imgdat->image, ftype);
-    }
-}
-
-/**
  * preview_save
  *      save preview_shot
  *
@@ -1189,7 +1111,7 @@ void preview_save(struct context *cnt)
 
             previewname[basename_len] = '\0';
             strcat(previewname, imageext(cnt));
-            put_image(cnt, previewname, &cnt->imgs.preview_image, FTYPE_IMAGE);
+            put_picture(cnt, previewname, cnt->imgs.preview_image.image , FTYPE_IMAGE);
         } else {
             /*
              * Save best preview-shot also when no movies are recorded or imagepath
@@ -1205,10 +1127,10 @@ void preview_save(struct context *cnt)
             else
                 imagepath = (char *)DEF_IMAGEPATH;
 
-            mystrftime(cnt, filename, sizeof(filename), imagepath, &cnt->imgs.preview_image.timestamp_tm, NULL, 0, 0);
+            mystrftime(cnt, filename, sizeof(filename), imagepath, &cnt->imgs.preview_image.timestamp_tm, NULL, 0);
             snprintf(previewname, PATH_MAX, "%s/%s.%s", cnt->conf.filepath, filename, imageext(cnt));
 
-            put_image(cnt, previewname, &cnt->imgs.preview_image, FTYPE_IMAGE);
+            put_picture(cnt, previewname, cnt->imgs.preview_image.image, FTYPE_IMAGE);
         }
 
         /* Restore global context values. */

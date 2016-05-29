@@ -51,7 +51,6 @@ struct config conf_template = {
     threshold_tune:                 0,
     output_pictures:                "on",
     motion_img:                     0,
-    output_secondary_pictures:      0,
     emulate_motion:                 0,
     event_gap:                      DEF_EVENT_GAP,
     max_movie_time:                 DEF_MAXMOVIETIME,
@@ -72,6 +71,7 @@ struct config conf_template = {
     contrast:                       0,
     saturation:                     0,
     hue:                            0,
+    power_line_frequency:           -1,
     roundrobin_frames:              1,
     roundrobin_skip:                1,
     pre_capture:                    0,
@@ -80,9 +80,7 @@ struct config conf_template = {
     ffmpeg_output:                  0,
     extpipe:                        NULL,
     useextpipe:                     0,
-    extpipe_secondary:              0,
     ffmpeg_output_debug:            0,
-    ffmpeg_output_secondary:        0,
     ffmpeg_bps:                     DEF_FFMPEG_BPS,
     ffmpeg_vbr:                     DEF_FFMPEG_VBR,
     ffmpeg_video_codec:             DEF_FFMPEG_CODEC,
@@ -93,12 +91,13 @@ struct config conf_template = {
     stream_port:                    0,
     stream_quality:                 50,
     stream_motion:                  0,
-    stream_secondary:               0,
     stream_maxrate:                 1,
     stream_localhost:               1,
     stream_limit:                   0,
     stream_auth_method:             0,
     stream_authentication:          NULL,
+    stream_preview_scale:           25,
+    stream_preview_newline:         0,
     webcontrol_port:                0,
     webcontrol_localhost:           1,
     webcontrol_html_output:         1,
@@ -127,17 +126,14 @@ struct config conf_template = {
     sql_log_snapshot:               1,
     sql_log_movie:                  0,
     sql_log_timelapse:              0,
-    sql_event_start_query:          DEF_SQL_START_QUERY,
-    sql_file_query:                 DEF_SQL_FILE_QUERY,
+    sql_query:                      DEF_SQL_QUERY,
     database_type:                  NULL,
     database_dbname:                NULL,
     database_host:                  "localhost",
     database_user:                  NULL,
     database_password:              NULL,
     database_port:                  0,
-#ifdef HAVE_SQLITE3
-    sqlite3_db:                     NULL,
-#endif
+    database_busy_timeout:           0,
 #endif /* defined(HAVE_MYSQL) || defined(HAVE_PGSQL) || define(HAVE_SQLITE3) */
     on_picture_save:                NULL,
     on_motion_detected:             NULL,
@@ -152,14 +148,6 @@ struct config conf_template = {
     netcam_proxy:                   NULL,
     netcam_tolerant_check:          0,
     rtsp_uses_tcp:                  1,
-#ifdef HAVE_MMAL
-    mmalcam_name:		    NULL,
-    mmalcam_control_params:         NULL,
-    mmalcam_use_still:              0,
-    mmalcam_raw_capture_file:       NULL,
-    mmalcam_buffer2_upscale:        0,
-    mmalcam_buffer2_jpeg:           0,
-#endif
     text_changes:                   0,
     text_left:                      NULL,
     text_right:                     DEF_TIMESTAMP,
@@ -234,7 +222,7 @@ config_param config_params[] = {
     },
     {
     "log_level",
-    "# Level of log messages [1..9] (EMR, ALR, CRT, ERR, WRN, NTC, ERR, DBG, ALL). (default: 6 / NTC)",
+    "# Level of log messages [1..9] (EMG, ALR, CRT, ERR, WRN, NTC, INF, DBG, ALL). (default: 6 / NTC)",
     1,
     CONF_OFFSET(log_level),
     copy_int,
@@ -425,71 +413,6 @@ config_param config_params[] = {
     print_bool
     },
     {
-    "filecam_path",
-    "# Path to file containing raw captured YUV frames from which to read input\n"
-    " Default: Not defined",
-    0,
-    CONF_OFFSET(filecam_path),
-    copy_string,
-    print_string
-    },
-#ifdef HAVE_MMAL
-    {
-    "mmalcam_name",
-    "# Name of camera to use if you are using a camera accessed through OpenMax/MMAL\n"
-    " Default: Not defined",
-    0,
-    CONF_OFFSET(mmalcam_name),
-    copy_string,
-    print_string
-    },
-    {
-    "mmalcam_control_params",
-    "# Camera control parameters (see raspivid/raspistill tool documentation)\n"
-    " Default: Not defined",
-    0,
-    CONF_OFFSET(mmalcam_control_params),
-    copy_string,
-    print_string
-    },
-    {
-    "mmalcam_use_still",
-    "# Use the still camera output - limits frame rate, but can show more of frame\n"
-    " Default: off",
-    0,
-    CONF_OFFSET(mmalcam_use_still),
-    copy_bool,
-    print_bool
-    },
-    {
-    "mmalcam_secondary_buffer_upscale",
-    "# Activate a secondary buffer with larger resolution\n"
-    " Default: 0 (off)",
-    0,
-    CONF_OFFSET(mmalcam_buffer2_upscale),
-    copy_int,
-    print_int
-    },
-    {
-    "mmalcam_secondary_buffer_jpeg",
-    "# Pre-encode the secondary buffer to this jpeg quality\n"
-    " Default: 0 (off), range 1-100",
-    0,
-    CONF_OFFSET(mmalcam_buffer2_jpeg),
-    copy_int,
-    print_int
-    },
-    {
-    "mmalcam_raw_capture_file",
-    "# Path to file where raw dump of camera YUV capture will be written (for testing, profiling & debugging)\n"
-    " Default: Not defined",
-    0,
-    CONF_OFFSET(mmalcam_raw_capture_file),
-    copy_string,
-    print_string
-    },
-#endif
-    {
     "rtsp_uses_tcp",
     "# RTSP connection uses TCP to communicate to the camera. Can prevent image corruption.\n"
     "# Default: on",
@@ -544,6 +467,22 @@ config_param config_params[] = {
     "# Valid range 0-255, default 0 = disabled",
     0,
     CONF_OFFSET(hue),
+    copy_int,
+    print_int
+    },
+    {
+    "power_line_frequency",
+    "# Set the power line frequency to help cancel flicker by compensating\n"
+    "# for light intensity ripple.  (default: -1).\n"
+    "# This can help reduce power line light flicker.\n"
+    "# Valuse :\n"
+    "# do not modify the device setting       : -1\n"
+    "# V4L2_CID_POWER_LINE_FREQUENCY_DISABLED : 0\n"
+    "# V4L2_CID_POWER_LINE_FREQUENCY_50HZ     : 1\n"
+    "# V4L2_CID_POWER_LINE_FREQUENCY_60HZ     : 2\n"
+    "# V4L2_CID_POWER_LINE_FREQUENCY_AUTO     : 3",
+    0,
+    CONF_OFFSET(power_line_frequency),
     copy_int,
     print_int
     },
@@ -656,6 +595,7 @@ config_param config_params[] = {
     "# Ignore sudden massive light intensity changes given as a percentage of the picture\n"
     "# area that changed intensity. If set to 1, motion will do some kind of\n"
     "# auto-lightswitch. Valid range: 0 - 100 , default: 0 = disabled",
+
     0,
     CONF_OFFSET(lightswitch),
     copy_int,
@@ -746,14 +686,6 @@ config_param config_params[] = {
     print_bool
     },
     {
-    "output_secondary_pictures",
-    "# Output pictures from any enabled secondary image (default: off)",
-    0,
-    CONF_OFFSET(output_secondary_pictures),
-    copy_bool,
-    print_bool
-    },
-    {
     "quality",
     "# The quality (in percent) to be used by the jpeg compression (default: 75)",
     0,
@@ -791,14 +723,6 @@ config_param config_params[] = {
     "# object (ghost images) (default: off)",
     0,
     CONF_OFFSET(ffmpeg_output_debug),
-    copy_bool,
-    print_bool
-    },
-    {
-    "ffmpeg_output_secondary_movies",
-    "# Use ffmpeg to make movies using any enabled secondary buffer (default: off)",
-    0,
-    CONF_OFFSET(ffmpeg_output_secondary),
     copy_bool,
     print_bool
     },
@@ -853,19 +777,21 @@ config_param config_params[] = {
     "# flv - gives you a flash video with extension .flv\n"
     "# ffv1 - FF video codec 1 for Lossless Encoding ( experimental )\n"
     "# mov - QuickTime ( testing )\n"
-    "# ogg - Ogg/Theora ( testing )",
+    "# ogg - Ogg/Theora ( testing )\n"
+    "# mp4 - MPEG-4 Part 14 H264 encoding\n"
+    "# mkv - Matroska H264 encoding\n"
+    "# hevc - H.265 / HEVC (High Efficiency Video Coding)",
     0,
     CONF_OFFSET(ffmpeg_video_codec),
     copy_string,
     print_string
     },
     {
-    "ffmpeg_deinterlace",
-    "# Use ffmpeg to deinterlace video. Necessary if you use an analog camera\n"
-    "# and see horizontal combing on moving objects in video or pictures.\n"
-    "# (default: off)",
+    "ffmpeg_duplicate_frames",
+    "# True to duplicate frames to achieve \"framerate\" fps, but enough\n"
+    "duplicated frames and the video appears to freeze once a second.",
     0,
-    CONF_OFFSET(ffmpeg_deinterlace),
+    CONF_OFFSET(ffmpeg_duplicate_frames),
     copy_bool,
     print_bool
     },
@@ -905,14 +831,6 @@ config_param config_params[] = {
     CONF_OFFSET(extpipe),
     copy_string,
     print_string
-    },
-    {
-    "extpipe_secondary",
-    "# Send secondary buffer contents to extpipe",
-    0,
-    CONF_OFFSET(extpipe_secondary),
-    copy_bool,
-    print_bool
     },
     {
     "snapshot_interval",
@@ -980,7 +898,7 @@ config_param config_params[] = {
     copy_string,
     print_string
     },
-     {
+    {
     "text_changes",
     "# Draw the number of changed pixed on the images (default: off)\n"
     "# Will normally be set to off except when you setup and adjust the motion settings\n"
@@ -1138,14 +1056,6 @@ config_param config_params[] = {
     print_bool
     },
     {
-    "stream_secondary",
-    "# Use secondary buffer as stream image source (default: off)",
-    0,
-    CONF_OFFSET(stream_secondary),
-    copy_bool,
-    print_bool
-    },
-    {
     "stream_maxrate",
     "# Maximum framerate for streams (default: 1)",
     0,
@@ -1190,6 +1100,22 @@ config_param config_params[] = {
     CONF_OFFSET(stream_authentication),
     copy_string,
     print_string
+    },
+    {
+    "stream_preview_scale",
+    "# Percentage to scale the preview stream image (default: 25)\n",
+    0,
+    CONF_OFFSET(stream_preview_scale),
+    copy_int,
+    print_int
+    },
+    {
+    "stream_preview_newline",
+    "# Have stream preview image start on a new line (default: no)\n",
+    0,
+    CONF_OFFSET(stream_preview_newline),
+    copy_bool,
+    print_bool
     },
     {
     "webcontrol_port",
@@ -1489,6 +1415,7 @@ config_param config_params[] = {
     copy_string,
     print_string
     },
+
 #if defined(HAVE_MYSQL) || defined(HAVE_PGSQL) || defined(HAVE_SQLITE3)
     {
     "sql_log_picture",
@@ -1527,31 +1454,7 @@ config_param config_params[] = {
     print_bool
     },
     {
-    "sql_event_start_query",
-    "# SQL query string that is sent to the database at the start of an event\n"
-    "# This allows for creating a global event id for an event that files will\n"
-    "# use when they are created\n"
-    "# Use same conversion specifiers has for text features\n"
-    "# Additional special conversion specifiers are\n"
-    "# %n = the number representing the file_type\n"
-    "# %f = filename with full path\n"
-    "# Create tables :\n"
-    "##\n"
-    "# Mysql\n"
-    "# CREATE TABLE security_events (event_id int primary key auto_increment, camera int, event_time_stamp timestamp(14));\n"
-    "#\n"
-    "# Postgresql\n"
-    "# CREATE TABLE security (camera int, filename char(80) not null, frame int, file_type int, time_stamp timestamp without time zone, event_time_stamp timestamp without time zone);\n"
-    "#\n"
-    "# Default value:\n"
-    "# insert into security_events (camera, event_time_stamp) values('%t', '%Y-%m-%d %T')",
-    0,
-    CONF_OFFSET(sql_event_start_query),
-    copy_string,
-    print_string
-    },
-    {
-    "sql_file_query",
+    "sql_query",
     "# SQL query string that is sent to the database\n"
     "# Use same conversion specifiers has for text features\n"
     "# Additional special conversion specifiers are\n"
@@ -1560,15 +1463,15 @@ config_param config_params[] = {
     "# Create tables :\n"
     "##\n"
     "# Mysql\n"
-    "# CREATE TABLE security_file (file_id int primary key auto_increment, event_id int foreign key, filename text not null, frame int, file_type int, time_stamp timestamp(14));\n"
+    "# CREATE TABLE security (camera int, filename char(80) not null, frame int, file_type int, time_stamp timestamp(14), event_time_stamp timestamp(14));\n"
     "#\n"
     "# Postgresql\n"
     "# CREATE TABLE security (camera int, filename char(80) not null, frame int, file_type int, time_stamp timestamp without time zone, event_time_stamp timestamp without time zone);\n"
     "#\n"
     "# Default value:\n"
-    "# insert into security_file(camera, event_id, filename, frame, file_type, time_stamp) values('%t', '%n', '%f', '%q', '%n', '%Y-%m-%d %T')",
+    "# insert into security(camera, filename, frame, file_type, time_stamp, text_event) values('%t', '%f', '%q', '%n', '%Y-%m-%d %T', '%C')",
     0,
-    CONF_OFFSET(sql_file_query),
+    CONF_OFFSET(sql_query),
     copy_string,
     print_string
     },
@@ -1624,19 +1527,14 @@ config_param config_params[] = {
     copy_int,
     print_int
     },
-#ifdef HAVE_SQLITE3
     {
-    "sqlite3_db",
-    "\n############################################################\n"
-    "# Database Options For SQLite3\n"
-    "############################################################\n\n"
-    "# SQLite3 database to log to (default: not defined)",
+    "database_busy_timeout",
+    "# Database wait for unlock time (default: 0)",
     0,
-    CONF_OFFSET(sqlite3_db),
-    copy_string,
-    print_string
+    CONF_OFFSET(database_busy_timeout),
+    copy_int,
+    print_int
     },
-#endif /* HAVE_SQLITE3 */
 #endif /* defined(HAVE_MYSQL) || defined(HAVE_PGSQL) || defined(HAVE_SQLITE3) */
     {
     "video_pipe",
@@ -1692,13 +1590,14 @@ static void conf_cmdline(struct context *cnt, int thread)
      * if necessary. This is accomplished by calling mystrcpy();
      * see this function for more information.
      */
-    while ((c = getopt(conf->argc, conf->argv, "c:d:hmns?p:k:l:")) != EOF)
+    while ((c = getopt(conf->argc, conf->argv, "bc:d:hmns?p:k:l:")) != EOF)
         switch (c) {
         case 'c':
-            if (thread == -1) {
-                strncpy(cnt->conf_filename, optarg, sizeof(cnt->conf_filename) - 1);
-                cnt->conf_filename[sizeof(cnt->conf_filename) - 1] = 0;
-            }
+            if (thread == -1)
+                strcpy(cnt->conf_filename, optarg);
+            break;
+        case 'b':
+            cnt->daemon = 1;
             break;
         case 'n':
             cnt->daemon = 0;
@@ -1714,19 +1613,19 @@ static void conf_cmdline(struct context *cnt, int thread)
         case 'k':
             if (thread == -1) {
                 strncpy(cnt->log_type_str, optarg, sizeof(cnt->log_type_str) - 1);
-                cnt->log_type_str[sizeof(cnt->log_type_str) - 1] = 0;
+                cnt->log_type_str[sizeof(cnt->log_type_str) - 1] = '\0';
             }
             break;
         case 'p':
             if (thread == -1) {
                 strncpy(cnt->pid_file, optarg, sizeof(cnt->pid_file) - 1);
-                cnt->pid_file[sizeof(cnt->pid_file) - 1] = 0;
+                cnt->pid_file[sizeof(cnt->pid_file) - 1] = '\0';
             }
             break;
         case 'l':
             if (thread == -1) {
                 strncpy(cnt->log_file, optarg, sizeof(cnt->log_file) - 1);
-                cnt->log_file[sizeof(cnt->log_file) - 1] = 0;
+                cnt->log_file[sizeof(cnt->log_file) - 1] = '\0';
             }
             break;
         case 'm':
@@ -1829,7 +1728,7 @@ static struct context **conf_process(struct context **cnt, FILE *fp)
             while (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')
                 end--;
 
-            *(end+1) = 0;
+            *(end+1) = '\0';
 
             /* If line is only whitespace we continue to the next line. */
             if (strlen(line) == 0)
@@ -1843,10 +1742,10 @@ static struct context **conf_process(struct context **cnt, FILE *fp)
 
             cmd = beg; /* Command starts here. */
 
-            while (*beg != ' ' && *beg != '\t' && *beg != '=' && *beg)
+            while (*beg != ' ' && *beg != '\t' && *beg != '=' && *beg != '\0')
                 beg++;
 
-            *beg = 0; /* Command string terminates here. */
+            *beg = '\0'; /* Command string terminates here. */
 
             /* Trim space between command and argument. */
             beg++;
@@ -1863,7 +1762,7 @@ static struct context **conf_process(struct context **cnt, FILE *fp)
                  */
                 if ((beg[0] == '"' && beg[strlen(beg)-1] == '"') ||
                     (beg[0] == '\'' && beg[strlen(beg)-1] == '\'')) {
-                    beg[strlen(beg)-1] = 0;
+                    beg[strlen(beg)-1] = '\0';
                     beg++;
                 }
 
@@ -1933,7 +1832,7 @@ void conf_print(struct context **cnt)
                     fprintf(conffile, "%s\n", val);
 
                     if (strlen(val) == 0)
-                        fprintf(conffile, "; thread /usr/local/etc/thread1.conf\n");
+                        fprintf(conffile, "; thread %s/motion/thread1.conf\n", sysconfdir);
 
                     free(val);
                 } else if (thread == 0) {
@@ -2017,9 +1916,9 @@ struct context **conf_load(struct context **cnt)
     conf_cmdline(cnt[0], -1);
 
     if (cnt[0]->conf_filename[0]) { /* User has supplied filename on Command-line. */
-        strncpy(filename, cnt[0]->conf_filename, PATH_MAX-1);
-        filename[PATH_MAX-1] = 0;
-        fp = fopen (filename, "r");
+      strncpy(filename, cnt[0]->conf_filename, PATH_MAX-1);
+      filename[PATH_MAX-1] = '\0';
+      fp = fopen (filename, "r");
     }
 
     if (!fp) {  /* Command-line didn't work, try current dir. */
@@ -2044,7 +1943,7 @@ struct context **conf_load(struct context **cnt)
         fp = fopen(filename, "r");
 
         if (!fp) {
-            snprintf(filename, PATH_MAX, "%s/motion.conf", sysconfdir);
+            snprintf(filename, PATH_MAX, "%s/motion/motion.conf", sysconfdir);
             fp = fopen(filename, "r");
 
             if (!fp) /* There is no config file.... use defaults. */
@@ -2055,12 +1954,12 @@ struct context **conf_load(struct context **cnt)
 
     /* Now we process the motion.conf config file and close it. */
     if (fp) {
-        strncpy(cnt[0]->conf_filename, filename, sizeof(cnt[0]->conf_filename) - 1);
-        cnt[0]->conf_filename[sizeof(cnt[0]->conf_filename) - 1] = 0;
-        MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Processing thread 0 - config file %s",
-                   filename);
-        cnt = conf_process(cnt, fp);
-        myfclose(fp);
+      strncpy(cnt[0]->conf_filename, filename, sizeof(cnt[0]->conf_filename) - 1);
+      cnt[0]->conf_filename[sizeof(cnt[0]->conf_filename) - 1] = '\0';
+      MOTION_LOG(NTC, TYPE_ALL, NO_ERRNO, "%s: Processing thread 0 - config file %s",
+		 filename);
+      cnt = conf_process(cnt, fp);
+      myfclose(fp);
     } else {
         MOTION_LOG(CRT, TYPE_ALL, NO_ERRNO, "%s: Not config file to process using default values");
     }
@@ -2303,7 +2202,7 @@ char *mystrdup(const char *from)
     } else {
         stringlength = strlen(from);
         stringlength = (stringlength < PATH_MAX ? stringlength : PATH_MAX);
-        tmp = (char *)mymalloc(stringlength + 1);
+        tmp = mymalloc(stringlength + 1);
         strncpy(tmp, from, stringlength);
 
         /*
@@ -2312,7 +2211,7 @@ char *mystrdup(const char *from)
          * if the original string is greater than string length.
          */
         tmp += stringlength;
-        *tmp = 0;
+        *tmp = '\0';
         tmp -= stringlength;
     }
 
@@ -2509,10 +2408,11 @@ static void usage()
     printf("\nusage:\tmotion [options]\n");
     printf("\n\n");
     printf("Possible options:\n\n");
+    printf("-b\t\t\tRun in background (daemon) mode.\n");
     printf("-n\t\t\tRun in non-daemon mode.\n");
     printf("-s\t\t\tRun in setup mode.\n");
     printf("-c config\t\tFull path and filename of config file.\n");
-    printf("-d level\t\tLog level (1-9) (EMR, ALR, CRT, ERR, WRN, NTC, ERR, DBG, ALL). default: 6 / NTC.\n");
+    printf("-d level\t\tLog level (1-9) (EMG, ALR, CRT, ERR, WRN, NTC, INF, DBG, ALL). default: 6 / NTC.\n");
     printf("-k type\t\t\tType of log (COR, STR, ENC, NET, DBL, EVT, TRK, VID, ALL). default: ALL.\n");
     printf("-p process_id_file\tFull path and filename of process id file (pid file).\n");
     printf("-l log file \t\tFull path and filename of log file.\n");
@@ -2520,6 +2420,6 @@ static void usage()
     printf("-h\t\t\tShow this screen.\n");
     printf("\n");
     printf("Motion is configured using a config file only. If none is supplied,\n");
-    printf("it will read motion.conf from current directory, ~/.motion or %s.\n", sysconfdir);
+    printf("it will read motion.conf from current directory, ~/.motion or %s/motion.\n", sysconfdir);
     printf("\n");
 }

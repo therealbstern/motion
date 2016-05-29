@@ -212,46 +212,43 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
     /* Next add the user's message. */
     va_start(ap, fmt);
     n += vsnprintf(buf + n, sizeof(buf) - n, fmt, ap);
-    buf[1023] = 0;
+    buf[1023] = '\0';
 
     /* If errno_flag is set, add on the library error message. */
     if (errno_flag) {
-        // just knock off 10 characters if we're that close...
-        if (n + 10 > sizeof(buf)) {
-            buf[n - 10] = 0;
-            n -= 10;
-        }
+      size_t buf_len = strlen(buf);
 
-        n += snprintf(buf + n, ": ", sizeof(buf) - n);
+      // just knock off 10 characters if we're that close...
+      if (buf_len + 10 > 1024) {
+          buf[1024 - 10] = '\0';
+          buf_len = 1024 - 10;
+      }
+
+      strncat(buf, ": ", 1024 - buf_len);
+      n += 2;
         /*
          * This is bad - apparently gcc/libc wants to use the non-standard GNU
          * version of strerror_r, which doesn't actually put the message into
          * my buffer :-(.  I have put in a 'hack' to get around this.
          */
 #if defined(XSI_STRERROR_R)
-#warning "************************************"
-#warning "* Using XSI-COMPLIANT strerror_r() *"
-#warning "************************************"
         /* XSI-compliant strerror_r() */
-        strerror_r(errno_save, buf + n, sizeof(buf) - n);
+        strerror_r(errno_save, buf + n, sizeof(buf) - n);    /* 2 for the ': ' */
 #else
-#warning "************************************"
-#warning "* Using GNU-COMPLIANT strerror_r() *"
-#warning "************************************"
         /* GNU-specific strerror_r() */
-        snprintf(buf + n, "%s", strerror_r(errno_save, msg_buf, sizeof(msg_buf)), sizeof(buf) - n);
+        strncat(buf, strerror_r(errno_save, msg_buf, sizeof(msg_buf)), 1024 - strlen(buf));
 #endif
     }
 
     if (!log_mode) {
-        strncat(buf, "\n", sizeof(buf) - strlen(buf));
+        strncat(buf, "\n", 1024 - strlen(buf));
         fputs(buf, logfile);
         fflush(logfile);
 
     /* If log_mode, send the message to the syslog. */
     } else {
         syslog(level, "%s", buf);
-        strncat(buf, "\n", sizeof(buf) - strlen(buf));
+        strncat(buf, "\n", 1024 - strlen(buf));
         fputs(buf, stderr);
         fflush(stderr);
     }
@@ -259,3 +256,4 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
     /* Clean up the argument list routine. */
     va_end(ap);
 }
+

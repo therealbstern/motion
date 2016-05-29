@@ -387,42 +387,41 @@ void conv_rgb24toyuv420p(unsigned char *map, unsigned char *cap_map, int width, 
  */
 int mjpegtoyuv420p(unsigned char *map, unsigned char *cap_map, int width, int height, unsigned int size)
 {
-    uint8_t *yuv[3];
-    unsigned char *y, *u, *v;
-    int loop, ret;
+    unsigned char *ptr_buffer;
+    size_t soi_pos = 0;
+    int ret = 0;
 
-    yuv[0] = mymalloc(width * height * sizeof(yuv[0][0]));
-    yuv[1] = mymalloc(width * height / 4 * sizeof(yuv[1][0]));
-    yuv[2] = mymalloc(width * height / 4 * sizeof(yuv[2][0]));
+    ptr_buffer = memmem(cap_map, size, "\xff\xd8", 2);
+    if (ptr_buffer != NULL) {
+        /**
+         Some cameras are sending multiple SOIs in the buffer.
+         Move the pointer to the last SOI in the buffer and proceed.
+        */
+        while (ptr_buffer != NULL && ((size - soi_pos - 1) > 2) ){
+            soi_pos = ptr_buffer - cap_map;
+            ptr_buffer = memmem(cap_map + soi_pos + 1, size - soi_pos - 1, "\xff\xd8", 2);
+        }
 
+        if (soi_pos != 0){
+            MOTION_LOG(INF, TYPE_VIDEO, NO_ERRNO, "%s: SOI position adjusted by %d bytes.", soi_pos);
+        }
 
-    ret = decode_jpeg_raw(cap_map, size, 0, 420, width, height, yuv[0], yuv[1], yuv[2]);
+        memmove(cap_map, cap_map + soi_pos, size - soi_pos);
+        size -= soi_pos;
+        ret = decode_jpeg_raw(cap_map, size, 0, 420, width, height,
+                map,
+                map + (width * height),
+                map + (width * height) + (width * height) / 4);
+
+    } else {
+        //Buffer does not have a SOI
+        ret = 1;
+    }
 
     if (ret == 1) {
         MOTION_LOG(CRT, TYPE_VIDEO, NO_ERRNO, "%s: Corrupt image ... continue");
         ret = 2;
     }
-
-    y = map;
-    u = y + width * height;
-    v = u + (width * height) / 4;
-    memset(y, 0, width * height);
-    memset(u, 0, width * height / 4);
-    memset(v, 0, width * height / 4);
-
-    for(loop = 0; loop < width * height; loop++)
-        *map++ = yuv[0][loop];
-
-    for(loop = 0; loop < width * height / 4; loop++)
-        *map++ = yuv[1][loop];
-
-    for(loop = 0; loop < width * height / 4; loop++)
-        *map++ = yuv[2][loop];
-
-    free(yuv[0]);
-    free(yuv[1]);
-    free(yuv[2]);
-
     return ret;
 }
 
@@ -550,12 +549,6 @@ void vid_close(struct context *cnt)
     struct video_dev *prev = NULL;
 #endif /* WITHOUT_V4L */
 
-    if (cnt->video_source.video_source_cleanup_fn) {
-        MOTION_LOG(INF, TYPE_VIDEO, NO_ERRNO, "%s: calling video source cleanup");
-        cnt->video_source.video_source_cleanup_fn(cnt);
-        return;
-    }
-    else
     /* Cleanup the netcam part */
     if (cnt->netcam) {
         MOTION_LOG(INF, TYPE_VIDEO, NO_ERRNO, "%s: calling netcam_cleanup");
@@ -732,7 +725,6 @@ static int vid_v4lx_start(struct context *cnt)
                conf->video_device, conf->input);
 
     dev = mymalloc(sizeof(struct video_dev));
-    memset(dev, 0, sizeof(struct video_dev));
 
     dev->video_device = conf->video_device;
 
@@ -766,6 +758,8 @@ static int vid_v4lx_start(struct context *cnt)
     dev->contrast = 0;
     dev->saturation = 0;
     dev->hue = 0;
+    /* -1 is don't modify, (0 is a valid value) */
+    dev->power_line_frequency = -1;
     dev->owner = -1;
     dev->v4l_fmt = VIDEO_PALETTE_YUV420P;
     dev->fps = 0;
@@ -864,13 +858,6 @@ int vid_start(struct context *cnt)
     struct config *conf = &cnt->conf;
     int dev = -1;
 
-    if (cnt->video_source.video_source_start_fn) {
-        dev = cnt->video_source.video_source_start_fn(cnt);
-        if (dev < 0) {
-            cnt->video_source.video_source_cleanup_fn(cnt);
-        }
-    }
-    else
     if (conf->netcam_url) {
         dev = netcam_start(cnt);
         if (dev < 0) {
@@ -897,7 +884,6 @@ int vid_start(struct context *cnt)
  * Parameters:
  *     cnt        Pointer to the context for this thread
  *     map        Pointer to the buffer in which the function puts the new image
- *     map2       Pointer to the secondary buffer in which the function puts the new image (optional, can be NULL)
  *
  * Global variable
  *     viddevs    The viddevs struct is "global" within the context of video.c
@@ -910,15 +896,11 @@ int vid_start(struct context *cnt)
  *    with bit 0 set            Non fatal V4L error (copy grey image and discard this image)
  *    with bit 1 set            Non fatal Netcam error
  */
-int vid_next(struct context *cnt, unsigned char *map, struct image_data* imgdat)
+int vid_next(struct context *cnt, unsigned char *map)
 {
     int ret = -2;
     struct config *conf = &cnt->conf;
 
-    if (cnt->video_source.video_source_next_fn) {
-        return cnt->video_source.video_source_next_fn(cnt, imgdat);
-    }
-    else
     if (conf->netcam_url) {
         if (cnt->video_dev == -1)
             return NETCAM_GENERAL_ERROR;

@@ -30,8 +30,8 @@ struct config {
     int max_changes;
     int threshold_tune;
     const char *output_pictures;
+    int ffmpeg_duplicate_frames;
     int motion_img;
-    int output_secondary_pictures;
     int emulate_motion;
     int event_gap;
     int max_movie_time;
@@ -44,7 +44,6 @@ struct config {
     int quiet;
     int useextpipe; /* ext_pipe on or off */
     const char *extpipe; /* full Command-line for pipe -- must accept YUV420P images  */
-    int extpipe_secondary;
     const char *picture_type;
     int noise;
     int noise_tune;
@@ -55,6 +54,7 @@ struct config {
     int contrast;
     int saturation;
     int hue;
+    int power_line_frequency;
     int roundrobin_frames;
     int roundrobin_skip;
     int pre_capture;
@@ -62,10 +62,8 @@ struct config {
     int switchfilter;
     int ffmpeg_output;
     int ffmpeg_output_debug;
-    int ffmpeg_output_secondary;
     int ffmpeg_bps;
     int ffmpeg_vbr;
-    int ffmpeg_deinterlace;
     const char *ffmpeg_video_codec;
 #ifdef HAVE_SDL
     int sdl_threadnr;
@@ -74,12 +72,13 @@ struct config {
     int stream_port;
     int stream_quality;
     int stream_motion;
-    int stream_secondary;
     int stream_maxrate;
     int stream_localhost;
     int stream_limit;
     int stream_auth_method;
     const char *stream_authentication;
+    int stream_preview_scale;
+    int stream_preview_newline;
     int webcontrol_port;
     int webcontrol_localhost;
     int webcontrol_html_output;
@@ -88,7 +87,7 @@ struct config {
     int tuner_number;
     int timelapse;
     const char *timelapse_mode; 
-#if (defined(BSD))
+#if (defined(BSD) || defined(__FreeBSD_kernel__))
     const char *tuner_device;
 #endif
     const char *video_device;
@@ -108,14 +107,12 @@ struct config {
     int sql_log_movie;
     int sql_log_timelapse;
     const char *sql_query;
-    const char *sql_event_start_query;
-    const char *sql_file_query;
     const char *database_type;
     const char *database_dbname;
     const char *database_host;
     const char *database_user;
     const char *database_password;
-    const char *sqlite3_db;
+    int database_busy_timeout;
     int database_port;
     char *on_picture_save;
     char *on_area_detected;
@@ -130,15 +127,6 @@ struct config {
     const char *netcam_proxy;
     unsigned int netcam_tolerant_check;
     unsigned int rtsp_uses_tcp;
-    const char *filecam_path;
-#ifdef HAVE_MMAL
-    const char *mmalcam_name;
-    const char *mmalcam_control_params;
-    int mmalcam_use_still;
-    int mmalcam_buffer2_upscale;
-    const char *mmalcam_raw_capture_file;
-    int mmalcam_buffer2_jpeg;
-#endif
     int text_changes;
     const char *text_left;
     const char *text_right;

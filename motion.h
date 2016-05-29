@@ -22,7 +22,11 @@
 #endif
 
 #ifdef HAVE_SQLITE3
+#ifdef HAVE_SQLITE3_EMBEDDED
+#include "sqlite3.h"
+#else
 #include <sqlite3.h>
+#endif
 #endif
 
 #ifdef HAVE_PGSQL
@@ -61,7 +65,6 @@
 #include "conf.h"
 #include "stream.h"
 #include "webhttpd.h"
-#include "videosourceplugin.h"
 
 #ifdef HAVE_SDL
 #include "sdl.h"
@@ -150,6 +153,7 @@
                                      */
 
 #define WATCHDOG_TMO            30   /* 30 sec max motion_loop interval */
+#define WATCHDOG_KILL          -60   /* -60 sec grace period before calling thread cancel */
 #define WATCHDOG_OFF          -127   /* Turn off watchdog, used when we wants to quit a thread */
 
 #define CONNECTION_KO           "Lost connection"
@@ -169,8 +173,7 @@
 #define DEF_TIMELAPSE_MODE      "daily"
 
 /* Do not break this line into two or more. Must be ONE line */
-#define DEF_SQL_START_QUERY "sql_event_start_query insert into security_events(camera, event_time_stamp) values('%t', '%Y-%m-%d %T')"
-#define DEF_SQL_FILE_QUERY "sql_file_query insert into security_file(camera, event_id, filename, frame, file_type, time_stamp) values('%t', '%e', '%f', '%q', '%n', '%Y-%m-%d %T')"
+#define DEF_SQL_QUERY "sql_query insert into security(camera, filename, frame, file_type, time_stamp, event_time_stamp) values('%t', '%f', '%q', '%n', '%Y-%m-%d %T', '%C')"
 
 
 /* OUTPUT Image types */
@@ -209,10 +212,6 @@
 #define UPDATE_REF_FRAME  1
 #define RESET_REF_FRAME   2
 
-#define SECONDARY_TYPE_NONE 0
-#define SECONDARY_TYPE_RAW  1
-#define SECONDARY_TYPE_JPEG 2
-
 #define BUFSIZE_1MEG      (1024 * 1024)
 
 /* Forward declaration, used in track.h */
@@ -220,11 +219,6 @@ struct images;
 
 #include "track.h"
 #include "netcam.h"
-#include "filecam.h"
-
-#ifdef HAVE_MMAL
-#include "mmalcam.h"
-#endif
 
 /* 
  * Structure to hold images information
@@ -248,7 +242,6 @@ struct image_data {
     time_t timestamp;           /* Timestamp when image was captured */
     struct tm timestamp_tm;
     int shot;                   /* Sub second timestamp count */
-    int total_shots;            /* Total shots taken so far */
 
     /* 
      * Movement center to img center distance 
@@ -261,9 +254,6 @@ struct image_data {
     struct coord location;      /* coordinates for center and size of last motion detection*/
 
     int total_labels;
-
-    unsigned char *secondary_image;
-    int secondary_size;
 };
 
 /* 
@@ -294,8 +284,6 @@ struct image_data {
 
 /* date/time drawing, draw.c */
 int draw_text(unsigned char *image, unsigned int startx, unsigned int starty, unsigned int width, const char *text, unsigned int factor);
-int draw_final_image_text(struct context* cnt, struct image_data* imgdata, unsigned int startx, unsigned int starty,
-                            const char *text, unsigned int factor);
 int initialize_chars(void);
 
 struct images {
@@ -326,13 +314,6 @@ struct images {
     int labels_above;
     int labelsize_max;
     int largest_label;
-
-    int secondary_type;
-    int secondary_width;
-    int secondary_height;
-    int secondary_size;
-    float secondary_width_scale;
-    float secondary_height_scale;
 };
 
 /* Contains data for image rotation, see rotate.c. */
@@ -371,21 +352,15 @@ struct context {
     unsigned int log_type;
 
     struct config conf;
-    struct video_source_plugin video_source;
     struct images imgs;
     struct trackoptions track;
     struct netcam_context *netcam;
-    struct filecam_context *filecam;
-#ifdef HAVE_MMAL
-    struct mmalcam_context *mmalcam;
-#endif
     struct image_data *current_image;        /* Pointer to a structure where the image, diffs etc is stored */
     unsigned int new_img;
 
     int locate_motion_mode;
     int locate_motion_style;
     int process_thisframe;
-    int motion_frames;
     struct rotdata rotate_data;              /* rotation data is thread-specific */
 
     int noise;
@@ -400,6 +375,9 @@ struct context {
     volatile unsigned int restart;     /* Restart the thread when it ends */
     /* Is the motion thread running */
     volatile unsigned int running;
+    /* Is the web control thread running */
+    volatile unsigned int webcontrol_running;
+    volatile unsigned int webcontrol_finish;      /* End the thread */
     volatile int watchdog;
 
     pthread_t thread_id;
@@ -412,7 +390,6 @@ struct context {
     int postcap;                             /* downcounter, frames left to to send post event */
 
     int shots;
-    int total_shots;
     unsigned int detecting_motion;
     struct tm *currenttime_tm;
     struct tm *eventtime_tm;
@@ -449,7 +426,6 @@ struct context {
 
 #ifdef HAVE_MYSQL
     MYSQL *database;
-    my_ulonglong current_event_id;
 #endif
 
 #ifdef HAVE_PGSQL
@@ -483,6 +459,6 @@ void * mymalloc(size_t);
 void * myrealloc(void *, size_t, const char *);
 FILE * myfopen(const char *, const char *, size_t);
 int myfclose(FILE *);
-size_t mystrftime(const struct context *, char *, size_t, const char *, const struct tm *, const char *, int, unsigned long long);
+size_t mystrftime(const struct context *, char *, size_t, const char *, const struct tm *, const char *, int);
 int create_path(const char *);
 #endif /* _INCLUDE_MOTION_H */

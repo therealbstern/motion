@@ -16,6 +16,9 @@
 #include <netdb.h>
 #include <stddef.h>
 
+/* Timeout in seconds, used for read and write */
+const int NONBLOCK_TIMEOUT = 1;
+
 pthread_mutex_t httpd_mutex;
 
 // This is a dummy variable use to kill warnings when not checking sscanf and similar functions
@@ -197,7 +200,7 @@ static ssize_t write_nonblock(int fd, const void *buf, size_t size)
     struct timeval tm;
     fd_set fds;
 
-    tm.tv_sec = 1; /* Timeout in seconds */
+    tm.tv_sec = NONBLOCK_TIMEOUT;
     tm.tv_usec = 0;
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
@@ -223,7 +226,7 @@ static ssize_t read_nonblock(int fd ,void *buf, ssize_t size)
     struct timeval tm;
     fd_set fds;
 
-    tm.tv_sec = 1; /* Timeout in seconds */
+    tm.tv_sec = NONBLOCK_TIMEOUT; /* Timeout in seconds */
     tm.tv_usec = 0;
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
@@ -281,6 +284,8 @@ static void send_template_raw(int client_socket, char *res)
 {
     ssize_t nwrite = 0;
     nwrite = write_nonblock(client_socket, res, strlen(res));
+    if (nwrite < 0)
+        MOTION_LOG(DBG, TYPE_STREAM, SHOW_ERRNO, "%s: write_nonblock returned value less than zero.");
 }
 
 /**
@@ -290,6 +295,9 @@ static void send_template_end_client(int client_socket)
 {
     ssize_t nwrite = 0;
     nwrite = write_nonblock(client_socket, end_template, strlen(end_template));
+    if (nwrite < 0)
+        MOTION_LOG(DBG, TYPE_STREAM, SHOW_ERRNO, "%s: write_nonblock returned value less than zero.");
+
 }
 
 /**
@@ -303,6 +311,9 @@ static void response_client(int client_socket, const char *template, char *back)
         send_template(client_socket, back);
         send_template_end_client(client_socket);
     }
+    if (nwrite < 0)
+        MOTION_LOG(DBG, TYPE_STREAM, SHOW_ERRNO, "%s: write_nonblock returned value less than zero.");
+
 }
 
 /**
@@ -370,7 +381,7 @@ static void url_decode(char *urlencoded, size_t length)
                 *urldecoded++ = c[1];
             }
 
-	} else if (*data == '<' || *data == '+' || *data == '>') {
+        } else if (*data == '<' || *data == '+' || *data == '>') {
             *urldecoded++ = ' ';
         } else {
             *urldecoded++ = *data;
@@ -1954,14 +1965,47 @@ static unsigned int handle_get(int client_socket, const char *url, void *userdat
         /* ROOT_URI -> GET / */
         if (!strcmp(url, "/")) {
             int y;
+            int counter;
+            char hostname[1024];
+
+            //Send the webcontrol section if applicable
             if (cnt[0]->conf.webcontrol_html_output) {
                 send_template_ini_client(client_socket, ini_template);
                 sprintf(res, "<b>Motion "VERSION" Running [%hu] Threads</b><br>\n"
-                             "<a href='/0/'>All</a><br>\n", i);
+                             "<a href='/0/'>All</a>\n", i);
                 send_template(client_socket, res);
+                
+                counter = 0;
                 for (y = 1; y < i; y++) {
-                    sprintf(res, "<a href='/%hu/'>Thread %hu</a><br>\n", y, y);
+                    counter++;
+                    if (counter == 6){
+                        sprintf(res, "<br>");
+                        send_template(client_socket, res);
+                        counter = 0;
+                    }
+                    sprintf(res, "<a href='/%hu/'>Thread %hu</a>\n", y, y);
                     send_template(client_socket, res);
+                }
+                sprintf(res, "<br>");
+                send_template(client_socket, res);
+
+                //Send the preview section
+                hostname[1023] = '\0';
+                gethostname(hostname, 1023);
+
+                for (y = 0; y < i; y++) {
+                    if (cnt[y]->conf.stream_port) {
+                        if (cnt[y]->conf.stream_preview_newline) {
+                            sprintf(res, "<br>");
+                            send_template(client_socket, res);
+                        }
+                        sprintf(res, "<a href=http://%s:%d> "
+                            "<img src=http://%s:%d/ border=0 width=%d%%></a/n>"
+                            ,hostname,cnt[y]->conf.stream_port
+                            ,hostname,cnt[y]->conf.stream_port
+                            ,cnt[y]->conf.stream_preview_scale);
+                        send_template(client_socket, res);
+                    }
                 }
                 send_template_end_client(client_socket);
             } else {
@@ -2220,7 +2264,7 @@ static unsigned int read_client(int client_socket, void *userdata, char *auth)
         nread = read_nonblock(client_socket, buffer, length);
 
         if (nread <= 0) {
-            MOTION_LOG(ERR, TYPE_STREAM, SHOW_ERRNO, "%s: motion-httpd First Read Error");
+            MOTION_LOG(DBG, TYPE_STREAM, SHOW_ERRNO, "%s: motion-httpd First Read Error");
             pthread_mutex_unlock(&httpd_mutex);
             return 1;
         } else {
@@ -2490,7 +2534,7 @@ void httpd_run(struct context **cnt)
         char *userpass = NULL;
         size_t auth_size = strlen(cnt[0]->conf.webcontrol_authentication);
 
-        authentication = (char *) mymalloc(BASE64_LENGTH(auth_size) + 1);
+        authentication = mymalloc(BASE64_LENGTH(auth_size) + 1);
         userpass = mymalloc(auth_size + 4);
         /* base64_encode can read 3 bytes after the end of the string, initialize it */
         memset(userpass, 0, auth_size + 4);
@@ -2501,10 +2545,10 @@ void httpd_run(struct context **cnt)
 
     while ((client_sent_quit_message) && (!closehttpd)) {
 
-        client_socket_fd = acceptnonblocking(sd, 1);
+        client_socket_fd = acceptnonblocking(sd, NONBLOCK_TIMEOUT);
 
         if (client_socket_fd < 0) {
-            if ((!cnt[0]) || (cnt[0]->finish)) {
+            if ((!cnt[0]) || (cnt[0]->webcontrol_finish)) {
                 MOTION_LOG(NTC, TYPE_STREAM, NO_ERRNO, "%s: motion-httpd - Finishing");
                 closehttpd = 1;
             }
@@ -2520,8 +2564,7 @@ void httpd_run(struct context **cnt)
 
     }
 
-    if (authentication != NULL)
-        free(authentication);
+    free(authentication);
     close(sd);
     MOTION_LOG(NTC, TYPE_STREAM, NO_ERRNO, "%s: motion-httpd Closing");
     pthread_mutex_destroy(&httpd_mutex);
@@ -2535,6 +2578,17 @@ void *motion_web_control(void *arg)
 {
     struct context **cnt = arg;
     httpd_run(cnt);
+
+    /* 
+     * Update how many threads we have running. This is done within a
+     * mutex lock to prevent multiple simultaneous updates to
+     * 'threads_running'.
+     */
+    pthread_mutex_lock(&global_lock);
+    threads_running--;
+    cnt[0]->webcontrol_running = 0;
+    pthread_mutex_unlock(&global_lock);
+
     MOTION_LOG(NTC, TYPE_STREAM, NO_ERRNO, "%s: motion-httpd thread exit");
     pthread_exit(NULL);
 }

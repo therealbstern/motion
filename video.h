@@ -14,8 +14,12 @@
 #include <sys/mman.h>
 
 
-#if defined(HAVE_LINUX_VIDEODEV_H) && (!defined(WITHOUT_V4L))
+#if !defined(WITHOUT_V4L)
+#if defined(HAVE_LINUX_VIDEODEV_H)
 #include <linux/videodev.h>
+#elif defined(HAVE_SYS_VIDEOIO_H)
+#include <sys/videoio.h>
+#endif
 #include "vloopback_motion.h"
 #include "pwc-ioctl.h"
 #endif
@@ -61,6 +65,7 @@ struct video_dev {
     int contrast;
     int saturation;
     int hue;
+    int power_line_frequency;
     unsigned long freq;
     int tuner_number;
     int fps;
@@ -87,7 +92,7 @@ struct video_dev {
 
 /* video functions, video_common.c */
 int vid_start(struct context *cnt);
-int vid_next(struct context *cnt, unsigned char *map, struct image_data* imgdat);
+int vid_next(struct context *cnt, unsigned char *map);
 void vid_close(struct context *cnt);
 void vid_cleanup(void);
 void vid_init(void);
