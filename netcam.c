@@ -2931,12 +2931,13 @@ int netcam_start(struct context *cnt)
             return -3;
         }
 
+#if 0
     } else {
         // not jpeg, get the dimensions
         netcam->width = netcam->rtsp->codec_context->width;
         netcam->height = netcam->rtsp->codec_context->height;
+#endif
     }
-
 
     /* Fill in camera details into context structure. */
     cnt->imgs.width = netcam->width;

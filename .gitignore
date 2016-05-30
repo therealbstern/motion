@@ -2,6 +2,7 @@
 .svn/
 *.o
 cmakebuild
+tags
 autom4te.cache
 aclocal.m4
 .depend

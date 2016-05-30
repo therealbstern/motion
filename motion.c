@@ -201,6 +201,7 @@ static void image_ring_destroy(struct context *cnt)
 static void image_save_as_preview(struct context *cnt, struct image_data *img)
 {
     void * image;
+    void * secondary_image;
     /* Save preview image pointer */
     image = cnt->imgs.preview_image.image;
     secondary_image = cnt->imgs.preview_image.secondary_image;
@@ -213,6 +214,8 @@ static void image_save_as_preview(struct context *cnt, struct image_data *img)
 
     /* Copy image */
     memcpy(cnt->imgs.preview_image.image, img->image, cnt->imgs.size);
+    if (secondary_image)
+        memcpy(cnt->imgs.preview_image.secondary_image, img->secondary_image, cnt->imgs.secondary_size);
 
     /*
      * If we set output_all to yes and during the event
