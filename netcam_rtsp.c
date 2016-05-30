@@ -776,7 +776,8 @@ void netcam_shutdown_rtsp(netcam_context_ptr netcam){
 *       Success    0(zero)
 *
 */
-int netcam_setup_rtsp(netcam_context_ptr netcam, struct url_t *url){
+int netcam_setup_rtsp(netcam_context_ptr netcam, struct url_t *url)
+{
 #ifdef HAVE_FFMPEG
 
   struct context *cnt = netcam->cnt;
@@ -784,7 +785,6 @@ int netcam_setup_rtsp(netcam_context_ptr netcam, struct url_t *url){
   int ret = -1;
 
   netcam->caps.streaming = NCS_RTSP;
-
   netcam->rtsp = rtsp_new_context();
 
   netcam_rtsp_null_context(netcam);
@@ -807,77 +807,77 @@ int netcam_setup_rtsp(netcam_context_ptr netcam, struct url_t *url){
     netcam->connect_port = 0;
   }
 
-    if (cnt->conf.netcam_userpass != NULL) {
-        ptr = cnt->conf.netcam_userpass;
+  if (cnt->conf.netcam_userpass != NULL) {
+    ptr = cnt->conf.netcam_userpass;
+  } else {
+    ptr = url->userpass;  /* Don't set this one NULL, gets freed. */
+  }
+
+  if (ptr != NULL) {
+    char *cptr;
+
+    if ((cptr = strchr(ptr, ':')) == NULL) {
+      netcam->rtsp->user = mystrdup(ptr);
     } else {
-        ptr = url->userpass;  /* Don't set this one NULL, gets freed. */
+      netcam->rtsp->user = mymalloc((cptr - ptr)+2);  //+2 for string terminator
+      memcpy(netcam->rtsp->user, ptr,(cptr - ptr));
+      netcam->rtsp->pass = mystrdup(cptr + 1);
     }
+  }
 
-    if (ptr != NULL) {
-        char *cptr;
-        if ((cptr = strchr(ptr, ':')) == NULL) {
-            netcam->rtsp->user = mystrdup(ptr);
-        } else {
-            netcam->rtsp->user = mymalloc((cptr - ptr)+2);  //+2 for string terminator
-            memcpy(netcam->rtsp->user, ptr,(cptr - ptr));
-            netcam->rtsp->pass = mystrdup(cptr + 1);
-        }
-    }
+  /*
+   *  Need a method to query the path and
+   *  determine the authentication type
+   */
+  if ((netcam->rtsp->user != NULL) && (netcam->rtsp->pass != NULL)) {
+      ptr = mymalloc(strlen(url->service) + strlen(netcam->connect_host)
+          + 5 + strlen(url->path) + 5
+          + strlen(netcam->rtsp->user) + strlen(netcam->rtsp->pass) + 4 );
+      sprintf((char *)ptr, "%s://%s:%s@%s:%d%s",
+          url->service,netcam->rtsp->user,netcam->rtsp->pass,
+          netcam->connect_host, netcam->connect_port, url->path);
+  } else {
+      ptr = mymalloc(strlen(url->service) + strlen(netcam->connect_host)
+          + 5 + strlen(url->path) + 5);
+      sprintf((char *)ptr, "%s://%s:%d%s", url->service,
+          netcam->connect_host, netcam->connect_port, url->path);
+  }
+  netcam->rtsp->path = (char *)ptr;
 
-    /*
-     *  Need a method to query the path and
-     *  determine the authentication type
-     */
-    if ((netcam->rtsp->user != NULL) && (netcam->rtsp->pass != NULL)) {
-        ptr = mymalloc(strlen(url->service) + strlen(netcam->connect_host)
-	          + 5 + strlen(url->path) + 5
-              + strlen(netcam->rtsp->user) + strlen(netcam->rtsp->pass) + 4 );
-        sprintf((char *)ptr, "%s://%s:%s@%s:%d%s",
-                url->service,netcam->rtsp->user,netcam->rtsp->pass,
-                netcam->connect_host, netcam->connect_port, url->path);
-    }
-    else {
-        ptr = mymalloc(strlen(url->service) + strlen(netcam->connect_host)
-	          + 5 + strlen(url->path) + 5);
-        sprintf((char *)ptr, "%s://%s:%d%s", url->service,
-	        netcam->connect_host, netcam->connect_port, url->path);
-    }
-    netcam->rtsp->path = (char *)ptr;
+  netcam_url_free(url);
 
-    netcam_url_free(url);
+  /*
+   * Now we need to set some flags
+   */
+  netcam->rtsp->readingframe = 0;
+  netcam->rtsp->status = RTSP_NOTCONNECTED;
 
-    /*
-     * Now we need to set some flags
-     */
-    netcam->rtsp->readingframe = 0;
-    netcam->rtsp->status = RTSP_NOTCONNECTED;
+  /*
+   * Warn and fix dimensions as needed.
+   */
+  if (netcam->cnt->conf.width % 8) {
+      MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Image width (%d) requested is not modulo 8.", netcam->cnt->conf.width);
+      netcam->cnt->conf.width = netcam->cnt->conf.width - (netcam->cnt->conf.width % 8) + 8;
+      MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Adjusting width to next higher multiple of 8 (%d).", netcam->cnt->conf.width);
+  }
+  if (netcam->cnt->conf.height % 8) {
+      MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Image height (%d) requested is not modulo 8.", netcam->cnt->conf.height);
+      netcam->cnt->conf.height = netcam->cnt->conf.height - (netcam->cnt->conf.height % 8) + 8;
+      MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Adjusting height to next higher multiple of 8 (%d).", netcam->cnt->conf.height);
+  }
 
-    /*
-     * Warn and fix dimensions as needed.
-     */
-    if (netcam->cnt->conf.width % 8) {
-        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Image width (%d) requested is not modulo 8.", netcam->cnt->conf.width);
-        netcam->cnt->conf.width = netcam->cnt->conf.width - (netcam->cnt->conf.width % 8) + 8;
-        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Adjusting width to next higher multiple of 8 (%d).", netcam->cnt->conf.width);
-    }
-    if (netcam->cnt->conf.height % 8) {
-        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Image height (%d) requested is not modulo 8.", netcam->cnt->conf.height);
-        netcam->cnt->conf.height = netcam->cnt->conf.height - (netcam->cnt->conf.height % 8) + 8;
-        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: Adjusting height to next higher multiple of 8 (%d).", netcam->cnt->conf.height);
-    }
-
-    /*
-     * Documentation does not indicate thread safety on these
-     * init functions but we lock them just in case.
-     */
-    pthread_mutex_lock(&global_lock);
-        av_register_all();
-        avcodec_register_all();
-    pthread_mutex_unlock(&global_lock);
+  /*
+   * Documentation does not indicate thread safety on these
+   * init functions but we lock them just in case.
+   */
+  pthread_mutex_lock(&global_lock);
+  av_register_all();
+  avcodec_register_all();
+  pthread_mutex_unlock(&global_lock);
     
-    /*
-     * The RTSP context should be all ready to attempt a connection with
-     * the server, so we try ....
+  /*
+   * The RTSP context should be all ready to attempt a connection with
+   * the server, so we try ....
      */
     ret = netcam_connect_rtsp(netcam);
     if (ret < 0){

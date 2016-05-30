@@ -99,20 +99,22 @@ static void exec_command(struct context *cnt, char *command, char *filename, int
  */
 
 static void event_newfile(struct context *cnt ATTRIBUTE_UNUSED,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED, char *filename, void *ftype,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *filename, void *ftype,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     MOTION_LOG(NTC, TYPE_EVENTS, NO_ERRNO, "%s: File of type %ld saved to: %s",
                (unsigned long)ftype, filename);
 }
 
 
-static void event_beep(struct context *cnt, motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED,
-            char *filename ATTRIBUTE_UNUSED,
-            void *ftype ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+static void event_beep(struct context *cnt,
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *filename ATTRIBUTE_UNUSED,
+    void *ftype ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (!cnt->conf.quiet)
         printf("\a");
@@ -127,9 +129,11 @@ static void event_beep(struct context *cnt, motion_event type ATTRIBUTE_UNUSED,
  *      to the config parameter.
  */
 static void on_picture_save_command(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED,
-            char *filename, void *arg, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *filename,
+    void *arg,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     int filetype = (unsigned long)arg;
 
@@ -141,10 +145,11 @@ static void on_picture_save_command(struct context *cnt,
 }
 
 static void on_motion_detected_command(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->conf.on_motion_detected)
         exec_command(cnt, cnt->conf.on_motion_detected, NULL, 0);
@@ -153,9 +158,11 @@ static void on_motion_detected_command(struct context *cnt,
 #if defined(HAVE_MYSQL) || defined(HAVE_PGSQL) || defined(HAVE_SQLITE3)
 
 static void event_sqlnewfile(struct context *cnt,
-            motion_event type  ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED,
-            char *filename, void *arg, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *filename,
+    void *arg,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     int sqltype = (unsigned long)arg;
 
@@ -258,40 +265,44 @@ static void event_sqlnewfile(struct context *cnt,
 #endif /* defined HAVE_MYSQL || defined HAVE_PGSQL || defined(HAVE_SQLITE3) */
 
 static void on_area_command(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->conf.on_area_detected)
         exec_command(cnt, cnt->conf.on_area_detected, NULL, 0);
 }
 
 static void on_event_start_command(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->conf.on_event_start)
         exec_command(cnt, cnt->conf.on_event_start, NULL, 0);
 }
 
 static void on_event_end_command(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->conf.on_event_end)
         exec_command(cnt, cnt->conf.on_event_end, NULL, 0);
 }
 
 static void event_stop_stream(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if ((cnt->conf.stream_port) && (cnt->stream.socket != -1))
         stream_stop(cnt);
@@ -299,18 +310,41 @@ static void event_stop_stream(struct context *cnt,
 
 static void event_stream_put(struct context *cnt,
             motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *tm ATTRIBUTE_UNUSED)
+            unsigned char *img,
+            char *dummy1 ATTRIBUTE_UNUSED,
+            void *eventdata,
+            struct tm *tm ATTRIBUTE_UNUSED)
 {
-    if (cnt->conf.stream_port)
-        stream_put(cnt, img);
+    if (cnt->conf.stream_port) {
+        if (eventdata && !img) {
+            struct image_data* imgdata = (struct image_data*)eventdata;
+
+            if (imgdata->secondary_image && cnt->conf.stream_secondary) {
+                if (cnt->imgs.secondary_type == SECONDARY_TYPE_RAW) {
+                    stream_put(cnt, imgdata->secondary_image, cnt->imgs.secondary_width, cnt->imgs.secondary_height, cnt->imgs.secondary_size);
+                }
+                else if (cnt->imgs.secondary_type == SECONDARY_TYPE_JPEG) {
+                    stream_put_encoded(cnt, imgdata->secondary_image, cnt->imgs.secondary_width, cnt->imgs.secondary_height, imgdata->secondary_size);
+                }
+            }
+            else {
+                img = imgdata->image;
+            }
+        }
+
+        if (img) {
+            stream_put(cnt, img, cnt->imgs.width, cnt->imgs.height, cnt->imgs.size);
+        }
+    }
 }
 
 #ifdef HAVE_SDL
 static void event_sdl_put(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *img,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *dummy2 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     sdl_put(img, cnt->imgs.width, cnt->imgs.height);
 }
@@ -319,9 +353,11 @@ static void event_sdl_put(struct context *cnt,
 
 #if defined(HAVE_LINUX_VIDEODEV_H) && !defined(WITHOUT_V4L) && !defined(BSD)
 static void event_vid_putpipe(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy ATTRIBUTE_UNUSED, void *devpipe,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *img,
+    char *dummy ATTRIBUTE_UNUSED,
+    void *devpipe,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (*(int *)devpipe >= 0) {
         if (vid_putpipe(*(int *)devpipe, img, cnt->imgs.size) == -1)
@@ -339,15 +375,18 @@ const char *imageext(struct context *cnt)
 }
 
 static void event_image_detect(struct context *cnt,
-        motion_event type ATTRIBUTE_UNUSED,
-        unsigned char *newimg, char *dummy1 ATTRIBUTE_UNUSED,
-        void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *newimg ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *eventdata,
+    struct tm *currenttime_tm)
 {
     char fullfilename[PATH_MAX];
     char filename[PATH_MAX];
 
     if (cnt->new_img & NEWIMG_ON) {
         const char *imagepath;
+        struct image_data * imgdat = (struct image_data*) eventdata;
 
         /*
          *  conf.imagepath would normally be defined but if someone deleted it by control interface
@@ -361,14 +400,16 @@ static void event_image_detect(struct context *cnt,
         mystrftime(cnt, filename, sizeof(filename), imagepath, currenttime_tm, NULL, 0);
         snprintf(fullfilename, PATH_MAX, "%s/%s.%s", cnt->conf.filepath, filename, imageext(cnt));
 
-        put_picture(cnt, fullfilename, newimg, FTYPE_IMAGE);
+        put_image(cnt, fullfilename, imgdat, FTYPE_IMAGE);
     }
 }
 
 static void event_imagem_detect(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *newimg ATTRIBUTE_UNUSED, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *newimg ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *dummy2 ATTRIBUTE_UNUSED,
+    struct tm *currenttime_tm)
 {
     struct config *conf = &cnt->conf;
     char fullfilenamem[PATH_MAX];
@@ -397,11 +438,14 @@ static void event_imagem_detect(struct context *cnt,
 }
 
 static void event_image_snapshot(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummyimg ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *eventdata,
+    struct tm *currenttime_tm)
 {
     char fullfilename[PATH_MAX];
+    struct image_data * imgdat = (struct image_data*) eventdata;
     char filename[PATH_MAX];
     char filepath[PATH_MAX];
     int offset = 0;
@@ -410,7 +454,7 @@ static void event_image_snapshot(struct context *cnt,
     if (len >= 9)
         offset = len - 8;
 
-    if (strcmp(cnt->conf.snappath+offset, "lastsnap")) {
+    if (strcmp(cnt->conf.snappath + offset, "lastsnap")) {
         char linkpath[PATH_MAX];
         const char *snappath;
         /*
@@ -425,7 +469,7 @@ static void event_image_snapshot(struct context *cnt,
         mystrftime(cnt, filepath, sizeof(filepath), snappath, currenttime_tm, NULL, 0);
         snprintf(filename, PATH_MAX, "%s.%s", filepath, imageext(cnt));
         snprintf(fullfilename, PATH_MAX, "%s/%s", cnt->conf.filepath, filename);
-        put_picture(cnt, fullfilename, img, FTYPE_IMAGE_SNAPSHOT);
+        put_image(cnt, fullfilename, imgdat, FTYPE_IMAGE_SNAPSHOT);
 
         /*
          *  Update symbolic link *after* image has been written so that
@@ -444,25 +488,29 @@ static void event_image_snapshot(struct context *cnt,
         snprintf(filename, PATH_MAX, "%s.%s", filepath, imageext(cnt));
         snprintf(fullfilename, PATH_MAX, "%s/%s", cnt->conf.filepath, filename);
         remove(fullfilename);
-        put_picture(cnt, fullfilename, img, FTYPE_IMAGE_SNAPSHOT);
+        put_image(cnt, fullfilename, imgdat, FTYPE_IMAGE_SNAPSHOT);
     }
 
     cnt->snapshot = 0;
 }
 
 static void event_camera_lost(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img ATTRIBUTE_UNUSED, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *img ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *dummy2 ATTRIBUTE_UNUSED,
+    struct tm *currenttime_tm ATTRIBUTE_UNUSED)
 {
     if (cnt->conf.on_camera_lost)
         exec_command(cnt, cnt->conf.on_camera_lost, NULL, 0);
 }
 
 static void on_movie_end_command(struct context *cnt,
-                                 motion_event type ATTRIBUTE_UNUSED,
-                                 unsigned char *dummy ATTRIBUTE_UNUSED, char *filename,
-                                 void *arg, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *filename,
+    void *arg,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     int filetype = (unsigned long) arg;
 
@@ -471,9 +519,11 @@ static void on_movie_end_command(struct context *cnt,
 }
 
 static void event_extpipe_end(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *dummy2 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->extpipe_open) {
         cnt->extpipe_open = 0;
@@ -487,9 +537,11 @@ static void event_extpipe_end(struct context *cnt,
 }
 
 static void event_create_extpipe(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *dummy2 ATTRIBUTE_UNUSED,
+    struct tm *currenttime_tm)
 {
     if ((cnt->conf.useextpipe) && (cnt->conf.extpipe)) {
         char stamp[PATH_MAX] = "";
@@ -554,17 +606,31 @@ static void event_create_extpipe(struct context *cnt,
 }
 
 static void event_extpipe_put(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummyimg ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *eventdata,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     /* Check use_extpipe enabled and ext_pipe not NULL */
     if ((cnt->conf.useextpipe) && (cnt->extpipe != NULL)) {
         MOTION_LOG(DBG, TYPE_EVENTS, NO_ERRNO, "%s:");
+        struct image_data* imgdat = (struct image_data*)eventdata;
+        unsigned char* img;
+        int imgsize;
+
+        if (imgdat->secondary_image && cnt->conf.extpipe_secondary) {
+            img = imgdat->secondary_image;
+            imgsize = cnt->imgs.secondary_size;
+        }
+        else {
+            img = imgdat->image;
+            imgsize = cnt->imgs.size;
+        }
 
         /* Check that is open */
         if ((cnt->extpipe_open) && (fileno(cnt->extpipe) > 0)) {
-            if (!fwrite(img, cnt->imgs.size, 1, cnt->extpipe))
+            if (!fwrite(img, imgsize, 1, cnt->extpipe))
                 MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO, "%s: Error writting in pipe , state error %d",
                            ferror(cnt->extpipe));
         } else {
@@ -574,11 +640,12 @@ static void event_extpipe_put(struct context *cnt,
     }
 }
 
-
 static void event_new_video(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy ATTRIBUTE_UNUSED, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *dummy2 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     cnt->movie_last_shot = -1;
 
@@ -601,14 +668,31 @@ static void grey2yuv420p(unsigned char *u, unsigned char *v, int width, int heig
     memset(v, 128, width * height / 4);
 }
 
+#define FFMPEG_SELECT_IMAGE                                             \
+    int width;                                                          \
+    int height;                                                         \
+    unsigned char *img;                                                 \
+    if (cnt->conf.ffmpeg_output_secondary && imgdat->secondary_image && cnt->imgs.secondary_type == SECONDARY_TYPE_RAW) { \
+        width = cnt->imgs.secondary_width;                              \
+        height = cnt->imgs.secondary_height;                            \
+        img = imgdat->secondary_image;                                  \
+    }                                                                   \
+    else {                                                              \
+        width = cnt->imgs.width;                                        \
+        height = cnt->imgs.height;                                      \
+        img = imgdat->image;                                            \
+    }
 
 static void event_ffmpeg_newfile(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *currenttime_tm)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummyimg ATTRIBUTE_UNUSED,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *eventdata,
+    struct tm *currenttime_tm)
 {
-    int width = cnt->imgs.width;
-    int height = cnt->imgs.height;
+    struct image_data* imgdat = (struct image_data*) eventdata;
+    FFMPEG_SELECT_IMAGE;
+
     unsigned char *convbuf, *y, *u, *v;
     char stamp[PATH_MAX];
     const char *moviepath;
@@ -650,7 +734,7 @@ static void event_ffmpeg_newfile(struct context *cnt,
 
         if ((cnt->ffmpeg_output =
             ffmpeg_open((char *)cnt->conf.ffmpeg_video_codec, cnt->newfilename, y, u, v,
-                         cnt->imgs.width, cnt->imgs.height, cnt->movie_fps, cnt->conf.ffmpeg_bps,
+                         width, height, cnt->movie_fps, cnt->conf.ffmpeg_bps,
                          cnt->conf.ffmpeg_vbr,TIMELAPSE_NONE)) == NULL) {
             MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO, "%s: ffopen_open error creating (new) file [%s]",
                        cnt->newfilename);
@@ -664,15 +748,15 @@ static void event_ffmpeg_newfile(struct context *cnt,
 
     if (cnt->conf.ffmpeg_output_debug) {
         if (cnt->imgs.type == VIDEO_PALETTE_GREY) {
-            convbuf = mymalloc((width * height) / 2);
+            convbuf = mymalloc((cnt->imgs.width * cnt->imgs.height) / 2);
             y = cnt->imgs.out;
             u = convbuf;
-            v = convbuf + (width * height) / 4;
-            grey2yuv420p(u, v, width, height);
+            v = convbuf + (cnt->imgs.width * cnt->imgs.height) / 4;
+            grey2yuv420p(u, v, cnt->imgs.width, cnt->imgs.height);
         } else {
             y = cnt->imgs.out;
-            u = cnt->imgs.out + width *height;
-            v = u + (width * height) / 4;
+            u = cnt->imgs.out + cnt->imgs.width * cnt->imgs.height;
+            v = u + (cnt->imgs.width * cnt->imgs.height) / 4;
             convbuf = NULL;
         }
 
@@ -692,12 +776,14 @@ static void event_ffmpeg_newfile(struct context *cnt,
 }
 
 static void event_ffmpeg_timelapse(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED, unsigned char *img,
-            char *dummy1 ATTRIBUTE_UNUSED, void *dummy2 ATTRIBUTE_UNUSED,
-            struct tm *currenttime_tm)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummyimg,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *eventdata,
+    struct tm *currenttime_tm)
 {
-    int width = cnt->imgs.width;
-    int height = cnt->imgs.height;
+    struct image_data* imgdat = (struct image_data*)eventdata;
+    FFMPEG_SELECT_IMAGE;
     unsigned char *convbuf, *y, *u, *v;
 
     if (!cnt->ffmpeg_timelapse) {
@@ -749,7 +835,7 @@ static void event_ffmpeg_timelapse(struct context *cnt,
                         ,cnt->conf.ffmpeg_bps,cnt->conf.ffmpeg_vbr,TIMELAPSE_NEW);
         }
 
-        if (cnt->ffmpeg_timelapse == NULL){
+        if (cnt->ffmpeg_timelapse == NULL) {
             MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO, "%s: ffopen_open error creating "
                        "(timelapse) file [%s]", cnt->timelapsefilename);
             cnt->finish = 1;
@@ -777,13 +863,16 @@ static void event_ffmpeg_timelapse(struct context *cnt,
 }
 
 static void event_ffmpeg_put(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *img, char *dummy1 ATTRIBUTE_UNUSED,
-            void *dummy2 ATTRIBUTE_UNUSED, struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummyimg,
+    char *dummy1 ATTRIBUTE_UNUSED,
+    void *eventdata,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->ffmpeg_output) {
-        int width = cnt->imgs.width;
-        int height = cnt->imgs.height;
+        struct image_data* imgdat = (struct image_data*)eventdata;
+        FFMPEG_SELECT_IMAGE;
+
         unsigned char *y = img;
         unsigned char *u, *v;
 
@@ -808,14 +897,16 @@ static void event_ffmpeg_put(struct context *cnt,
 }
 
 static void event_ffmpeg_closefile(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
 
     if (cnt->ffmpeg_output) {
-        free(cnt->ffmpeg_output->udata);
+        if (cnt->ffmpeg_output->udata)
+            free(cnt->ffmpeg_output->udata);
 
         ffmpeg_close(cnt->ffmpeg_output);
         cnt->ffmpeg_output = NULL;
@@ -824,7 +915,8 @@ static void event_ffmpeg_closefile(struct context *cnt,
     }
 
     if (cnt->ffmpeg_output_debug) {
-        free(cnt->ffmpeg_output_debug->udata);
+        if (cnt->ffmpeg_output_debug->udata)
+            free(cnt->ffmpeg_output_debug->udata);
 
         ffmpeg_close(cnt->ffmpeg_output_debug);
         cnt->ffmpeg_output_debug = NULL;
@@ -834,13 +926,15 @@ static void event_ffmpeg_closefile(struct context *cnt,
 }
 
 static void event_ffmpeg_timelapseend(struct context *cnt,
-            motion_event type ATTRIBUTE_UNUSED,
-            unsigned char *dummy1 ATTRIBUTE_UNUSED,
-            char *dummy2 ATTRIBUTE_UNUSED, void *dummy3 ATTRIBUTE_UNUSED,
-            struct tm *tm ATTRIBUTE_UNUSED)
+    motion_event type ATTRIBUTE_UNUSED,
+    unsigned char *dummy1 ATTRIBUTE_UNUSED,
+    char *dummy2 ATTRIBUTE_UNUSED,
+    void *dummy3 ATTRIBUTE_UNUSED,
+    struct tm *tm ATTRIBUTE_UNUSED)
 {
     if (cnt->ffmpeg_timelapse) {
-        free(cnt->ffmpeg_timelapse->udata);
+        if (cnt->ffmpeg_timelapse->udata)
+            free(cnt->ffmpeg_timelapse->udata);
 
         ffmpeg_close(cnt->ffmpeg_timelapse);
         cnt->ffmpeg_timelapse = NULL;
@@ -1002,14 +1096,17 @@ struct event_handlers event_handlers[] = {
  * The split between unsigned images and signed filenames was introduced in 3.2.2
  * as a code reading friendly solution to avoid a stream of compiler warnings in gcc 4.0.
  */
-void event(struct context *cnt, motion_event type, unsigned char *image,
-           char *filename, void *eventdata, struct tm *tm)
+void event(struct context *cnt,
+    motion_event type,
+    unsigned char *image,
+    char *filename,
+    void *eventdata,
+    struct tm *tm)
 {
     int i=-1;
 
     while (event_handlers[++i].handler) {
         if (type == event_handlers[i].type)
-            event_handlers[i].handler(cnt, type, image, filename, eventdata,
-                                      tm);
+            event_handlers[i].handler(cnt, type, image, filename, eventdata, tm);
     }
 }

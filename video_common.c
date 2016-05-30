@@ -549,6 +549,12 @@ void vid_close(struct context *cnt)
     struct video_dev *prev = NULL;
 #endif /* WITHOUT_V4L */
 
+    if (cnt->video_source.video_source_cleanup_fn) {
+        MOTION_LOG(INF, TYPE_VIDEO, NO_ERRNO, "%s: calling video source cleanup");
+        cnt->video_source.video_source_cleanup_fn(cnt);
+        return;
+    }
+    else
     /* Cleanup the netcam part */
     if (cnt->netcam) {
         MOTION_LOG(INF, TYPE_VIDEO, NO_ERRNO, "%s: calling netcam_cleanup");
@@ -725,6 +731,7 @@ static int vid_v4lx_start(struct context *cnt)
                conf->video_device, conf->input);
 
     dev = mymalloc(sizeof(struct video_dev));
+    memset(dev, 0, sizeof(struct video_dev));
 
     dev->video_device = conf->video_device;
 
@@ -858,6 +865,13 @@ int vid_start(struct context *cnt)
     struct config *conf = &cnt->conf;
     int dev = -1;
 
+    if (cnt->video_source.video_source_start_fn) {
+        dev = cnt->video_source.video_source_start_fn(cnt);
+        if (dev < 0) {
+            cnt->video_source.video_source_cleanup_fn(cnt);
+        }
+    }
+    else
     if (conf->netcam_url) {
         dev = netcam_start(cnt);
         if (dev < 0) {
@@ -884,6 +898,7 @@ int vid_start(struct context *cnt)
  * Parameters:
  *     cnt        Pointer to the context for this thread
  *     map        Pointer to the buffer in which the function puts the new image
+ *     map2       Pointer to the secondary buffer in which the function puts the new image (optional, can be NULL)
  *
  * Global variable
  *     viddevs    The viddevs struct is "global" within the context of video.c
@@ -896,11 +911,15 @@ int vid_start(struct context *cnt)
  *    with bit 0 set            Non fatal V4L error (copy grey image and discard this image)
  *    with bit 1 set            Non fatal Netcam error
  */
-int vid_next(struct context *cnt, unsigned char *map)
+int vid_next(struct context *cnt, unsigned char *map, struct image_data* imgdat)
 {
     int ret = -2;
     struct config *conf = &cnt->conf;
 
+    if (cnt->video_source.video_source_next_fn) {
+        return cnt->video_source.video_source_next_fn(cnt, imgdat);
+    }
+    else
     if (conf->netcam_url) {
         if (cnt->video_dev == -1)
             return NETCAM_GENERAL_ERROR;

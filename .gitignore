@@ -1,6 +1,7 @@
 *.log
 .svn/
 *.o
+cmakebuild
 autom4te.cache
 aclocal.m4
 .depend

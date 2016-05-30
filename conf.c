@@ -51,6 +51,7 @@ struct config conf_template = {
     threshold_tune:                 0,
     output_pictures:                "on",
     motion_img:                     0,
+    output_secondary_pictures:      0,
     emulate_motion:                 0,
     event_gap:                      DEF_EVENT_GAP,
     max_movie_time:                 DEF_MAXMOVIETIME,
@@ -80,7 +81,9 @@ struct config conf_template = {
     ffmpeg_output:                  0,
     extpipe:                        NULL,
     useextpipe:                     0,
+    extpipe_secondary:              0,
     ffmpeg_output_debug:            0,
+    ffmpeg_output_secondary:        0,
     ffmpeg_bps:                     DEF_FFMPEG_BPS,
     ffmpeg_vbr:                     DEF_FFMPEG_VBR,
     ffmpeg_video_codec:             DEF_FFMPEG_CODEC,
@@ -91,6 +94,7 @@ struct config conf_template = {
     stream_port:                    0,
     stream_quality:                 50,
     stream_motion:                  0,
+    stream_secondary:               0,
     stream_maxrate:                 1,
     stream_localhost:               1,
     stream_limit:                   0,
@@ -147,6 +151,14 @@ struct config conf_template = {
     netcam_keepalive:               "off",
     netcam_proxy:                   NULL,
     netcam_tolerant_check:          0,
+#ifdef HAVE_MMAL
+    mmalcam_name:					NULL,
+    mmalcam_control_params:         NULL,
+    mmalcam_use_still:              0,
+    mmalcam_raw_capture_file:       NULL,
+    mmalcam_buffer2_upscale:        0,
+    mmalcam_buffer2_jpeg:           0,
+#endif
     rtsp_uses_tcp:                  1,
     text_changes:                   0,
     text_left:                      NULL,
@@ -413,6 +425,71 @@ config_param config_params[] = {
     print_bool
     },
     {
+    "filecam_path",
+    "# Path to file containing raw captured YUV frames from which to read input\n"
+    " Default: Not defined",
+    0,
+    CONF_OFFSET(filecam_path),
+    copy_string,
+    print_string
+    },
+#ifdef HAVE_MMAL
+    {
+    "mmalcam_name",
+    "# Name of camera to use if you are using a camera accessed through OpenMax/MMAL\n"
+    " Default: Not defined",
+    0,
+    CONF_OFFSET(mmalcam_name),
+    copy_string,
+    print_string
+    },
+    {
+    "mmalcam_control_params",
+    "# Camera control parameters (see raspivid/raspistill tool documentation)\n"
+    " Default: Not defined",
+    0,
+    CONF_OFFSET(mmalcam_control_params),
+    copy_string,
+    print_string
+    },
+    {
+    "mmalcam_use_still",
+    "# Use the still camera output - limits frame rate, but can show more of frame\n"
+    " Default: off",
+    0,
+    CONF_OFFSET(mmalcam_use_still),
+    copy_bool,
+    print_bool
+    },
+    {
+    "mmalcam_secondary_buffer_upscale",
+    "# Activate a secondary buffer with larger resolution\n"
+    " Default: 0 (off)",
+    0,
+    CONF_OFFSET(mmalcam_buffer2_upscale),
+    copy_int,
+    print_int
+    },
+    {
+    "mmalcam_secondary_buffer_jpeg",
+    "# Pre-encode the secondary buffer to this jpeg quality\n"
+    " Default: 0 (off), range 1-100",
+    0,
+    CONF_OFFSET(mmalcam_buffer2_jpeg),
+    copy_int,
+    print_int
+    },
+    {
+    "mmalcam_raw_capture_file",
+    "# Path to file where raw dump of camera YUV capture will be written (for testing, profiling & debugging)\n"
+    " Default: Not defined",
+    0,
+    CONF_OFFSET(mmalcam_raw_capture_file),
+    copy_string,
+    print_string
+    },
+#endif
+    {
     "rtsp_uses_tcp",
     "# RTSP connection uses TCP to communicate to the camera. Can prevent image corruption.\n"
     "# Default: on",
@@ -595,7 +672,6 @@ config_param config_params[] = {
     "# Ignore sudden massive light intensity changes given as a percentage of the picture\n"
     "# area that changed intensity. If set to 1, motion will do some kind of\n"
     "# auto-lightswitch. Valid range: 0 - 100 , default: 0 = disabled",
-
     0,
     CONF_OFFSET(lightswitch),
     copy_int,
@@ -686,6 +762,14 @@ config_param config_params[] = {
     print_bool
     },
     {
+    "output_secondary_pictures",
+    "# Output pictures from any enabled secondary image (default: off)",
+    0,
+    CONF_OFFSET(output_secondary_pictures),
+    copy_bool,
+    print_bool
+    },
+    {
     "quality",
     "# The quality (in percent) to be used by the jpeg compression (default: 75)",
     0,
@@ -723,6 +807,14 @@ config_param config_params[] = {
     "# object (ghost images) (default: off)",
     0,
     CONF_OFFSET(ffmpeg_output_debug),
+    copy_bool,
+    print_bool
+    },
+    {
+    "ffmpeg_output_secondary_movies",
+    "# Use ffmpeg to make movies using any enabled secondary buffer (default: off)",
+    0,
+    CONF_OFFSET(ffmpeg_output_secondary),
     copy_bool,
     print_bool
     },
@@ -831,6 +923,14 @@ config_param config_params[] = {
     CONF_OFFSET(extpipe),
     copy_string,
     print_string
+    },
+    {
+    "extpipe_secondary",
+    "# Send secondary buffer contents to extpipe",
+    0,
+    CONF_OFFSET(extpipe_secondary),
+    copy_bool,
+    print_bool
     },
     {
     "snapshot_interval",
@@ -1052,6 +1152,14 @@ config_param config_params[] = {
     "# rate given by stream_maxrate when motion is detected (default: off)",
     0,
     CONF_OFFSET(stream_motion),
+    copy_bool,
+    print_bool
+    },
+    {
+    "stream_secondary",
+    "# Use secondary buffer as stream image source (default: off)",
+    0,
+    CONF_OFFSET(stream_secondary),
     copy_bool,
     print_bool
     },
