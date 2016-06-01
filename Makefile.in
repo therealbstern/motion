@@ -47,6 +47,11 @@ EXAMPLES_BIN = motion.init-Debian motion.init-Fedora motion.init-FreeBSD.sh
 PROGS        = motion
 DEPEND_FILE  = .depend
 
+.PHONY: all autotools autotools-git build-commit build-commit-git clean \
+    current dep dev dev-git dist distclean help install motion-objects \
+    pre-build-info pre-mobject-info progs remove set-version set-version-git \
+    svn uninstall updateguide
+
 ################################################################################
 # ALL and PROGS build Motion and, possibly, Motion-control.                    #
 ################################################################################
