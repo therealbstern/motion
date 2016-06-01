@@ -892,7 +892,7 @@ if test -e "/proc/cpuinfo" ; then
 	CPU_MODEL=`cat /proc/cpuinfo | grep model[[^\ ]] | head -n1`
 	CPU_NAME=`cat /proc/cpuinfo | grep "model name" | head -n1`
 	CPU_FLAGS=`cat /proc/cpuinfo | grep "flags" | head -n1`
-	CPU_VENDOR=`cat /proc/cpuinfo | grep "vendor_id" | head -n1`
+	CPU_VENDOR=`grep vendor_id /proc/cpuinfo | head -n1`
 	CPU_FAMILY=${CPU_FAMILY#*: }
 	CPU_MODEL=${CPU_MODEL#*: }
 	CPU_NAME=${CPU_NAME#*: }
@@ -1004,6 +1004,9 @@ if test "x${CPU_TYPE}" = "xunknown"; then
 		k6-3)
 			CPU_OPTIONS="-march=k6-3"
 			;;
+                armv7l)
+                        CPU_OPTIONS="-mcpu=cortex-a53 -mfpu=neon-vfpv4"
+                        ;;
 		*)
 			CPU_OPTIONS="-march=native -mtune=native"
 			;;
