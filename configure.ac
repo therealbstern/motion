@@ -244,6 +244,131 @@ else
 	fi
 fi
 
+
+#
+# Check for Raspberry Pi Camera
+#
+RPICAM_SUPPORT="no"
+AC_ARG_WITH(rpicam,
+            [  --without-rpicam        Compile without support for the Raspberry Pi Camera.
+],
+[],
+[])
+AC_MSG_CHECKING(for Raspberry Pi)
+if test "x$withval" = "xno"; then
+    AC_MSG_RESULT(skipped)
+else
+    CAM_ENABLED=""
+    if test -f /boot/config.txt; then
+        CAM_ENABLED=`grep start_x /boot/config.txt`
+    fi
+    if test "x$CAM_ENABLED" = "xstart_x=1"; then
+        AC_MSG_RESULT(yes)
+        RPICAM_SUPPORT="yes"
+        AC_DEFINE([HAVE_RPICAM],1,[Define to 1 if you have Raspberry Pi Camera support])
+        RPI_OBJS="raspicam/RaspiCamControl.o raspicam/RaspiCLI.o"
+        AC_SUBST(RPI_OBJS)
+    else
+        AC_MSG_RESULT(no)
+        if test "$withval" = "yes"; then
+            echo ""
+            echo "***************************************************"
+            echo "* Raspberry Pi Camera support could not be found. *"
+            echo "*       Please enable it with raspi-config.       *"
+            echo "***************************************************"
+            echo ""
+        fi
+    fi
+fi
+
+RPICAM_HEADERS="yes"
+RPICAM_LIBS="yes"
+AC_ARG_WITH(rpicam-include,
+            [  --with-rpicam-include[=DIR]       Normally, configure will look in
+                          /opt/vc/include for the Raspberry Pi platform headers.
+                          If it fails, use this command to tell configure where
+                          to find interface/vcos/vcos.h .
+                          ],
+RPICAM_HEADERS="$withval"
+# if not given argument, assume standard
+)
+AC_ARG_WITH(rpicam-lib,
+    [  --with-rpicam-lib[=DIR]           Normally, configure will look in
+                          /opt/vc/lib for the Raspberry Pi platform libraries.
+                          If it fails, use this command to tell configure where
+                          to find libvcos.so .
+                          ],
+RPICAM_LIBS="$withval"
+# if not given argument, assume standard
+)
+AC_MSG_CHECKING(for Raspberry Pi platform headers)
+if test "x$CAM_ENABLED" = "xstart_x=1"; then
+    if test "${RPICAM_HEADERS}" = "yes"; then
+        if test -f /opt/vc/include/interface/vcos/vcos.h; then
+            AC_MSG_RESULT(found)
+            RPICAM_INC1=/opt/vc/include
+            RPICAM_INC2=/opt/vc/include/interface/vcos/pthreads
+            RPICAM_INC3=/opt/vc/include/interface/vmcs_host/linux
+        else
+            AC_MSG_RESULT(missing)
+            RPICAM_HEADERS="no"
+        fi
+    elif test "${RPICAM_HEADERS}" = "no"; then
+        AC_MSG_RESULT(skipped)
+    elif test -f "${RPICAM_HEADERS}/interface/vcos/vcos.h"; then
+        AC_MSG_RESULT($RPICAM_HEADERS)
+        RPICAM_INC1="${RPICAM_HEADERS}"
+        RPICAM_INC2="${RPICAM_HEADERS}/interface/vcos/pthreads"
+        RPICAM_INC3="${RPICAM_HEADERS}/interface/vmcs_host/linux"
+        RPICAM_HEADERS="yes"
+    else
+        AC_MSG_RESULT(missing)
+    fi
+
+    if test "$RPICAM_HEADERS" = "yes"; then
+        AC_MSG_CHECKING(for Raspberry Pi plaform libraries)
+        if test "${RPICAM_LIBS}" = "yes"; then
+            if test -f /opt/vc/lib/libvcos.so; then
+                RPICAM_LIBDIR=/opt/vc/lib
+            else
+                AC_MSG_RESULT(missing)
+                RPICAM_LIBS="no"
+            fi
+        elif test "${RPICAM_LIBS}" = "no"; then
+            AC_MSG_RESULT(skipped)
+        elif test -f "${RPICAM_LIBS}/libvcos.so"; then
+            AC_MSG_RESULT($RPICAM_LIBS)
+            RPICAM_LIBDIR="${RPICAM_LIBS}"
+            RPICAM_LIBS="yes"
+        else
+            AC_MSG_RESULT(missing)
+        fi
+
+        if test -z "${RPICAM_LIBDIR}"; then
+            :
+        else
+            saved_CFLAGS="$CFLAGS"
+            saved_LIBS="$LIBS"
+            saved_LDFLAGS="$LDFLAGS"
+            LIBS="$LIBS -lvcos -lmmal -lmmal_util -lmmal_core"
+            CFLAGS="$CFLAGS -I${RPICAM_INC1} -I${RPICAM_INC2} -I${RPICAM_INC3} -DHAVE_MMAL"
+            LDFLAGS="-L/opt/vc/lib"
+            AC_CHECK_LIB(vcos,vcos_init,[
+                TEMP_CFLAGS="$TEMP_CFLAGS -I${RPICAM_INC1} -I${RPICAM_INC2} -I${RPICAM_INC3}"
+                TEMP_LDFLAGS="$TEMP_LDFLAGS -L${RPICAM_LIBDIR}"
+                TEMP_LIBS="$TEMP_LIBS -lvcos -lvchiq_arm -lmmal_core -lmmal_util -lmmal_vc_client -lbcm_host"
+                AC_DEFINE([HAVE_RPI_VCOS],1,[Define to 1 if you have Raspberry Pi plaform support])
+                ],
+                AC_MSG_ERROR(Raspberry Pi platform support cannot be enabled))
+            CFLAGS=$saved_CFLAGS
+            LIBS=$saved_LIBS
+            LDFLAGS=$saved_LDFLAGS
+        fi
+    fi
+else
+    AC_MSG_RESULT(skipped)
+fi
+
 #
 # Check for the libjpeg-turbo library
 #
@@ -1173,6 +1298,12 @@ if test "${SDL_SUPPORT}" = "yes"; then
 	echo "SDL support:         Yes"
 else
 	echo "SDL support:         No"
+fi
+
+if test "${RPICAM_SUPPORT}" = "yes"; then
+	echo "RPi Camera support:  Yes"
+else
+	echo "RPI Camera support:  No"
 fi
 
 if test "${HAVE_FFMPEG}" = "yes"; then
