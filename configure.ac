@@ -266,7 +266,7 @@ else
         AC_MSG_RESULT(yes)
         RPICAM_SUPPORT="yes"
         AC_DEFINE([HAVE_RPICAM],1,[Define to 1 if you have Raspberry Pi Camera support])
-        RPI_OBJS="raspicam/RaspiCamControl.o raspicam/RaspiCLI.o"
+        RPI_OBJS="mmalcam.o mmaloutput.o raspicam/RaspiCamControl.o raspicam/RaspiCLI.o"
         AC_SUBST(RPI_OBJS)
     else
         AC_MSG_RESULT(no)
