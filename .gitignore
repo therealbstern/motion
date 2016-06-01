@@ -1,4 +1,5 @@
 *.log
+config.cache
 .svn/
 *.o
 cmakebuild

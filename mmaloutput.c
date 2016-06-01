@@ -65,9 +65,10 @@ int mmal_output_enable(mmal_output* output)
 
 int mmal_output_send_buffers_to_port(mmal_output* output)
 {
+    int i;
     int num = mmal_queue_length(output->buffer_pool->queue);
 
-    for (int i = 0; i < num; i++) {
+    for (i = 0; i < num; i++) {
         MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get(output->buffer_pool->queue);
 
         if (!buffer) {

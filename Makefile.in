@@ -69,9 +69,10 @@ progs: pre-build-info $(PROGS)
 # PRE-BUILD-INFO outputs some general info before the build process starts.    #
 ################################################################################
 pre-build-info: 
-	@echo "Welcome to the setup procedure for Motion, the motion detection daemon! If you get"
-	@echo "error messages during this procedure, please report them to the mailing list. The"
-	@echo "Motion Guide contains all information you should need to get Motion up and running."
+	@echo "Welcome to the setup procedure for Motion, the motion detection daemon! If you"
+	@echo "get error messages during this procedure, please report them to the mailing"
+	@echo "list.  The Motion Guide contains all information you should need to get Motion"
+	@echo "up and running."
 	@echo
 	@echo "Version: @PACKAGE_VERSION@"
 ifneq (,$(findstring freebsd,$(VIDEO_OBJ)))

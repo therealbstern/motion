@@ -354,7 +354,7 @@ if test "x$CAM_ENABLED" = "xstart_x=1"; then
             CFLAGS="$CFLAGS -I${RPICAM_INC1} -I${RPICAM_INC2} -I${RPICAM_INC3} -DHAVE_MMAL"
             LDFLAGS="-L/opt/vc/lib"
             AC_CHECK_LIB(vcos,vcos_init,[
-                TEMP_CFLAGS="$TEMP_CFLAGS -I${RPICAM_INC1} -I${RPICAM_INC2} -I${RPICAM_INC3}"
+                TEMP_CFLAGS="$TEMP_CFLAGS -I${RPICAM_INC1} -I${RPICAM_INC2} -I${RPICAM_INC3} -DHAVE_MMAL"
                 TEMP_LDFLAGS="$TEMP_LDFLAGS -L${RPICAM_LIBDIR}"
                 TEMP_LIBS="$TEMP_LIBS -lvcos -lvchiq_arm -lmmal_core -lmmal_util -lmmal_vc_client -lbcm_host"
                 AC_DEFINE([HAVE_RPI_VCOS],1,[Define to 1 if you have Raspberry Pi plaform support])

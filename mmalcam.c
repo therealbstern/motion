@@ -25,6 +25,7 @@
 #include "motion.h"
 #include "rotate.h"
 #include "utils.h"
+#include "mmalcam.h"
 
 #define MMALCAM_OK		0
 #define MMALCAM_ERROR	-1
@@ -128,6 +129,7 @@ static int create_splitter_component(mmalcam_context_ptr mmalcam, MMAL_PORT_T *s
     MMAL_STATUS_T status;
     MMAL_COMPONENT_T *splitter_component;
     MMAL_PORT_T *input_port;
+    int i;
 
     status = mmal_component_create(MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER, &splitter_component);
 
@@ -146,7 +148,7 @@ static int create_splitter_component(mmalcam_context_ptr mmalcam, MMAL_PORT_T *s
         goto error;
     }
 
-    for(int i = 0; i < splitter_component->output_num; i++)
+    for (i = 0; i < splitter_component->output_num; i++)
     {
         MMAL_PORT_T *output_port = splitter_component->output[i];
         output_port->buffer_num = 3;
