@@ -85,6 +85,8 @@ Bugfixes
    * Fixed a build of motion for some kernel version with not good videodev.h 
    * Netcam Modulo 8
    * Fixed the 3-fps video problem. (tosiara)
+   * Build fixes
+   * Imports from lowflyerUK (https://github.com/lowflyerUK/motion)
 
 3.2.12 Summary of Changes
 
