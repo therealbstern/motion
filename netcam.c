@@ -155,7 +155,7 @@ static void netcam_url_parse(struct url_t *parse_url, const char *text_url)
 #else
     const char *re = "(http|ftp|mjpg)://(((.*):(.*))@)?"
                      "([^/:]|[-.a-z0-9]+)(:([0-9]+))?($|(/[^:]*))";
-#endif                     
+#endif
     regex_t pattbuf;
     regmatch_t matches[10];
 
@@ -2408,7 +2408,7 @@ static int netcam_setup_ftp(netcam_context_ptr netcam, struct url_t *url)
         return -1;
     }
 
-    if (ftp_send_type(netcam->ftp, 'I') < 0) {
+    if (ftp_send_type(netcam->ftp) < 0) {
         MOTION_LOG(ERR, TYPE_NETCAM, NO_ERRNO, "%s: Error sending"
                    " TYPE I to ftp server");
         return -1;
@@ -2723,9 +2723,9 @@ int netcam_next(struct context *cnt, unsigned char *image)
      * approach is to just return a NULL (failed) to the caller (an
      * error message has already been produced by the libjpeg routines).
      */
-    if (setjmp(netcam->setjmp_buffer))
+    if (setjmp(netcam->setjmp_buffer)) {
         return NETCAM_GENERAL_ERROR | NETCAM_JPEG_CONV_ERROR;
-
+    }
     /* If there was no error, process the latest image buffer. */
     return netcam_proc_jpeg(netcam, image);
 }
@@ -2927,36 +2927,32 @@ int netcam_start(struct context *cnt)
 #ifdef have_av_get_media_type_string
     if (netcam->caps.streaming != NCS_RTSP) {
 #endif
-        /*
-        * If an error occurs in the JPEG decompression which follows this,
-        * jpeglib will return to the code within this 'if'.  If such an error
-        * occurs during startup, we will just abandon this attempt.
-        */
-        if (setjmp(netcam->setjmp_buffer)) {
-            MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: libjpeg decompression failure "
-                "on first frame - giving up!");
-            return -1;
-        }
+    /* If an error occurs in the JPEG decompression which follows this, jpeglib
+    will return to the code within this 'if'.  If such an error occurs during
+    startup, we will just abandon this attempt. */
+    if (setjmp(netcam->setjmp_buffer)) {
+        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO,
+            "%s: libjpeg decompression failure on first frame - giving up!");
+        return -1;
+    }
 
-        netcam->netcam_tolerant_check = cnt->conf.netcam_tolerant_check;
-        netcam->JFIF_marker = 0;
-        netcam_get_dimensions(netcam);
+    netcam->netcam_tolerant_check = cnt->conf.netcam_tolerant_check;
+    netcam->JFIF_marker = 0;
+    netcam_get_dimensions(netcam);
 
-        /*
-        * Motion currently requires that image height and width is a
-        * multiple of 16. So we check for this.
-        */
-        if (netcam->width % 8) {
-            MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: netcam image width (%d)"
-                " is not modulo 8", netcam->width);
-            return -3;
-        }
+    /* Motion currently requires that image height and width is a multiple of 8.
+    So we check for this. */
+    if (netcam->width % 8) {
+        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO,
+            "%s: netcam image width (%d) is not modulo 8", netcam->width);
+        return -3;
+    }
 
-        if (netcam->height % 8) {
-            MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO, "%s: netcam image height (%d)"
-                " is not modulo 8", netcam->height);
-            return -3;
-        }
+    if (netcam->height % 8) {
+        MOTION_LOG(CRT, TYPE_NETCAM, NO_ERRNO,
+            "%s: netcam image height (%d) is not modulo 8", netcam->height);
+        return -3;
+    }
 #ifdef have_av_get_media_type_string        
     } else {
         // not jpeg, get the dimensions

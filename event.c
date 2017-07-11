@@ -28,8 +28,8 @@
 static void exec_command(struct context *cnt, char *command, char *filename, int filetype)
 {
     char stamp[PATH_MAX];
-
     unsigned long long event_id = 0;
+
 #ifdef HAVE_MYSQL
     event_id = cnt->current_event_id;
 #endif
@@ -251,7 +251,6 @@ static void event_sqlnewfile(struct context *cnt, int type  ATTRIBUTE_UNUSED,
 #endif
         mystrftime(cnt, sqlquery, sizeof(sqlquery), cnt->conf.sql_file_query,
             &cnt->current_image->timestamp_tm, filename, sqltype, event_id);
-
         do_sql_query(sqlquery, cnt, 0);
     }
 }
@@ -728,6 +727,7 @@ static void event_ffmpeg_timelapse(struct context *cnt,
     if (!cnt->ffmpeg_timelapse) {
         char tmp[PATH_MAX];
         const char *timepath;
+        char codec_mpeg[5] = "mpeg4";
 
         /*
          *  conf.timepath would normally be defined but if someone deleted it by control interface
@@ -757,9 +757,9 @@ static void event_ffmpeg_timelapse(struct context *cnt,
         }
 
         if ((cnt->ffmpeg_timelapse =
-            ffmpeg_open((char *)TIMELAPSE_CODEC, cnt->timelapsefilename, y, u, v,
+            ffmpeg_open(codec_mpeg, cnt->timelapsefilename, y, u, v,
                          width, height, 24, cnt->conf.ffmpeg_bps,
-                         cnt->conf.ffmpeg_vbr)) == NULL) {
+                         cnt->conf.ffmpeg_vbr, TIMELAPSE_NEW)) == NULL) {
             MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO, "%s: ffopen_open error creating "
                        "(timelapse) file [%s]", cnt->timelapsefilename);
             cnt->finish = 1;

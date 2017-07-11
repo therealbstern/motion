@@ -788,12 +788,10 @@ int ftp_get_socket(ftp_context_pointer ctxt)
 * Returns      0 for success, negative error code for failure.
 *
 */
-int ftp_send_type(ftp_context_pointer ctxt, char type)
-{
-    char buf[100], utype;
+int ftp_send_type(ftp_context_pointer ctxt) {
+    char buf[100];
     int len, res;
 
-    utype = toupper(type);
     /* Assure transfer will be in "image" mode. */
     snprintf(buf, sizeof(buf), "TYPE I\r\n");
     len = strlen(buf);

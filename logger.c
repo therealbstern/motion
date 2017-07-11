@@ -216,35 +216,27 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
 
     /* If errno_flag is set, add on the library error message. */
     if (errno_flag) {
-        // just knock off 10 characters if we're that close...
-        if (n + 10 > sizeof(buf)) {
-            buf[n - 10] = 0;
-            n -= 10;
-        }
-
-        n += snprintf(buf + n, ": ", sizeof(buf) - n);
-        /*
-         * This is bad - apparently gcc/libc wants to use the non-standard GNU
-         * version of strerror_r, which doesn't actually put the message into
-         * my buffer :-(.  I have put in a 'hack' to get around this.
-         */
+        strncat(buf, ": ", sizeof(buf) - strlen(buf));
+        n += 2;
+        buf[sizeof(buf) - 1] = 0;
+        /* This is bad - apparently gcc/libc wants to use the non-standard GNU
+        version of strerror_r, which doesn't actually put the message into my
+        buffer :-(.  I have put in a 'hack' to get around this. */
 #if defined(XSI_STRERROR_R)
-#warning "************************************"
-#warning "* Using XSI-COMPLIANT strerror_r() *"
-#warning "************************************"
+#warning "Using XSI-COMPLIANT strerror_r()"
         /* XSI-compliant strerror_r() */
         strerror_r(errno_save, buf + n, sizeof(buf) - n);
 #else
-#warning "************************************"
-#warning "* Using GNU-COMPLIANT strerror_r() *"
-#warning "************************************"
+#warning "Using GNU-COMPLIANT strerror_r()"
         /* GNU-specific strerror_r() */
-        snprintf(buf + n, "%s", strerror_r(errno_save, msg_buf, sizeof(msg_buf)), sizeof(buf) - n);
+        strncat(buf, strerror_r(errno_save, msg_buf, sizeof(msg_buf)), sizeof(buf) - strlen(buf));
 #endif
     }
+    buf[sizeof(buf) - 1] = 0;
 
     if (!log_mode) {
         strncat(buf, "\n", sizeof(buf) - strlen(buf));
+        buf[sizeof(buf) - 1] = 0;
         fputs(buf, logfile);
         fflush(logfile);
 
@@ -252,6 +244,7 @@ void motion_log(int level, unsigned int type, int errno_flag, const char *fmt, .
     } else {
         syslog(level, "%s", buf);
         strncat(buf, "\n", sizeof(buf) - strlen(buf));
+        buf[sizeof(buf) - 1] = 0;
         fputs(buf, stderr);
         fflush(stderr);
     }

@@ -27,7 +27,6 @@
 #include <libavformat/avio.h>
 #include <libavutil/imgutils.h>
 
-
 /*
  * We are aiming to get the gcc compilation of motion practically "warning
  * free", when using all the possible warning switches.  The following macro

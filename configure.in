@@ -411,22 +411,22 @@ else if test "${FFMPEG_DIR}" = "yes"; then
 	# AUTODETECT STATIC/SHARED LIB 
 	AC_MSG_CHECKING(for ffmpeg autodetecting libraries)
 
-	if test -f /usr/lib64/libavcodec.a -o -f /usr/lib64/libavcodec.so && test -f /usr/lib64/libavformat.a -o -f /usr/lib64/libavformat.so ; then
+	if test -a /usr/lib64/libavcodec.a -o -a /usr/lib64/libavcodec.so && test -a /usr/lib64/libavformat.a -o -a /usr/lib64/libavformat.so ; then
 		AC_MSG_RESULT(found in /usr/lib64)
 		FFMPEG_OK="found"
 		FFMPEG_LIB="/usr/lib64"
 		FFMPEG_DIR="/usr"
-	elif test -f /usr/lib/libavcodec.a -o -f /usr/lib/libavcodec.so && test -f /usr/lib/libavformat.a -o -f /usr/lib/libavformat.so ; then
+	elif test -a /usr/lib/libavcodec.a -o -a /usr/lib/libavcodec.so && test -a /usr/lib/libavformat.a -o -a /usr/lib/libavformat.so ; then
 		AC_MSG_RESULT(found in /usr/lib)
 		FFMPEG_OK="found"
 		FFMPEG_LIB="/usr/lib"
 		FFMPEG_DIR="/usr"
-	elif test -f /usr/local/lib/libavcodec.a -o -f /usr/local/lib/libavcodec.so && test -f /usr/local/lib/libavformat.a -o -f /usr/local/lib/libavformat.so ; then
+	elif test -a /usr/local/lib/libavcodec.a -o -a /usr/local/lib/libavcodec.so && test -a /usr/local/lib/libavformat.a -o -a /usr/local/lib/libavformat.so ; then
 		AC_MSG_RESULT(found in /usr/local/lib)
 		FFMPEG_OK="found"
 		FFMPEG_LIB="/usr/local/lib"
 		FFMPEG_DIR="/usr/local"
-    elif test -f /usr/lib/x86_64-linux-gnu/libavcodec.a -o -f /usr/lib/x86_64-linux-gnu/libavcodec.so && test /usr/lib/x86_64-linux-gnu/libavformat.a -o -f /usr/lib/x86_64-linux-gnu/libavformat.so ; then
+    elif test -a /usr/lib/x86_64-linux-gnu/libavcodec.a -o -a /usr/lib/x86_64-linux-gnu/libavcodec.so && test /usr/lib/x86_64-linux-gnu/libavformat.a -o -a /usr/lib/x86_64-linux-gnu/libavformat.so ; then
         AC_MSG_RESULT(found in /usr/lib/x86_64-linux-gnu)
         FFMPEG_OK="found"
         FFMPEG_LIB="/usr/lib/x86_64-linux-gnu"
@@ -446,11 +446,11 @@ else if test "${FFMPEG_DIR}" = "yes"; then
 	fi 
 else
 	AC_MSG_CHECKING(for ffmpeg libraries in -> [${FFMPEG_DIR}] <-)
-	if test -f ${FFMPEG_DIR}/lib/libavcodec.a -o -f ${FFMPEG_DIR}/lib/libavcodec.so && test -f ${FFMPEG_DIR}/lib/libavformat.a -o -f ${FFMPEG_DIR}/lib/libavformat.so ; then
+	if test -a ${FFMPEG_DIR}/lib/libavcodec.a -o -a ${FFMPEG_DIR}/lib/libavcodec.so && test -a ${FFMPEG_DIR}/lib/libavformat.a -o -a ${FFMPEG_DIR}/lib/libavformat.so ; then
 		AC_MSG_RESULT(found)
 		FFMPEG_OK="found"
 		FFMPEG_LIB="${FFMPEG_DIR}/lib"
-	elif test -f ${FFMPEG_DIR}/libavcodec.a -o -f ${FFMPEG_DIR}/libavcodec.so && test -f ${FFMPEG_DIR}/libavformat.a -o -f ${FFMPEG_DIR}/libavformat.so ; then
+	elif test -a ${FFMPEG_DIR}/libavcodec.a -o -a ${FFMPEG_DIR}/libavcodec.so && test -a ${FFMPEG_DIR}/libavformat.a -o -a ${FFMPEG_DIR}/libavformat.so ; then
 		AC_MSG_RESULT(found)
 		FFMPEG_LIB="${FFMPEG_DIR}"
 		FFMPEG_OK="found"
@@ -522,7 +522,7 @@ if test "${FFMPEG_OK}" = "found"; then
 #
 
 	if  test "${FFMPEG_OK}" = "found"; then	
-        TEMP_LIBS="$TEMP_LIBS -L${FFMPEG_LIB} -lavformat -lavcodec -lavutil -lm -lz"
+        TEMP_LIBS="$TEMP_LIBS -lavformat -lavcodec -lavutil -lm -lz"
         TEMP_LDFLAGS="${TEMP_LDFLAGS} -L${FFMPEG_LIB}"
         TEMP_CFLAGS="${TEMP_CFLAGS} -DHAVE_FFMPEG ${FFMPEG_CFLAGS}"
 

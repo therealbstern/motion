@@ -36,7 +36,7 @@ ftp_context_pointer ftp_new_context(void);
 void ftp_free_context(ftp_context_pointer);
 ftp_context_pointer ftpOpen(const char *);
 int ftp_connect(netcam_context_ptr);
-int ftp_send_type(ftp_context_pointer, const char);
+int ftp_send_type(ftp_context_pointer);
 int ftp_get_socket(ftp_context_pointer);
 int ftp_read(ftp_context_pointer, void *, int);
 int ftp_close(ftp_context_pointer);

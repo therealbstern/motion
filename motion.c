@@ -478,7 +478,7 @@ static void motion_detected(struct context *cnt, int dev, struct image_data *img
              * on_motion_detected_commend so it must be done now.
              */
             mystrftime(cnt, cnt->text_event_string, sizeof(cnt->text_event_string),
-                       cnt->conf.text_event, cnt->eventtime_tm, NULL, 0, 0);
+                cnt->conf.text_event, cnt->eventtime_tm, NULL, 0, 0);
 
             /* EVENT_FIRSTMOTION triggers on_event_start_command and event_ffmpeg_newfile */
             event(cnt, EVENT_FIRSTMOTION, NULL, NULL, img, &img->timestamp_tm);
@@ -568,9 +568,9 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
                     t = "Other";
 
                 mystrftime(cnt, tmp, sizeof(tmp), "%H%M%S-%q", 
-                           &cnt->imgs.image_ring[cnt->imgs.image_ring_out].timestamp_tm, NULL, 0);
+                    &cnt->imgs.image_ring[cnt->imgs.image_ring_out].timestamp_tm, NULL, 0);
                 draw_final_image_text(cnt, &cnt->imgs.image_ring[cnt->imgs.image_ring_out], 10, 20,
-                           tmp, cnt->conf.text_double);
+                    tmp, cnt->conf.text_double);
                 draw_final_image_text(cnt, &cnt->imgs.image_ring[cnt->imgs.image_ring_out], 10, 30,
                                       t, cnt->conf.text_double);
             }
@@ -867,7 +867,7 @@ static int motion_init(struct context *cnt)
         if ((!strcmp(cnt->conf.database_type, "mysql")) && (cnt->conf.database_dbname)) { 
             // close database to be sure that we are not leaking
             mysql_close(cnt->database);
-	    cnt->current_event_id = 0;
+            cnt->current_event_id = 0;
 
             cnt->database = (MYSQL *) mymalloc(sizeof(MYSQL));
             mysql_init(cnt->database);
@@ -1092,7 +1092,7 @@ static void motion_cleanup(struct context *cnt)
 #ifdef HAVE_MYSQL
         if ( (!strcmp(cnt->conf.database_type, "mysql")) && (cnt->conf.database_dbname)) {    
             mysql_close(cnt->database); 
-	    cnt->current_event_id = 0;
+            cnt->current_event_id = 0;
         }
 #endif /* HAVE_MYSQL */
 
@@ -1122,7 +1122,9 @@ static void *motion_loop(void *arg)
     int i, j, z = 0;
     time_t lastframetime = 0;
     int frame_buffer_size;
+#ifndef HAVE_MMAL
     unsigned int rate_limit = 0;
+#endif
     int area_once = 0;
     int area_minx[9], area_miny[9], area_maxx[9], area_maxy[9];
     int smartmask_ratio = 0;
@@ -1236,14 +1238,13 @@ static void *motion_loop(void *arg)
         gettimeofday(&tv1, NULL);
         timenow = tv1.tv_usec + 1000000L * tv1.tv_sec;
 
-        /* 
-         * Calculate detection rate limit. Above 5fps we limit the detection
-         * rate to 3fps to reduce load at higher framerates - except on Pi.
-         * According to dozencrows, rate limiting doesn't help load on Pi.
-         */
+        /* Calculate detection rate limit. Above 5fps we limit the detection
+        rate to 3fps to reduce load at higher framerates - except on Pi.
+        According to dozencrows, rate limiting doesn't help load on Pi. */
 #ifdef HAVE_MMAL
         cnt->process_thisframe = 1;
 #else
+        // Rate limit disabled as it doesn't help on Pi
         cnt->process_thisframe = 0;
         rate_limit++;
         if (rate_limit >= (cnt->lastrate / 3)) {
@@ -1528,7 +1529,7 @@ static void *motion_loop(void *arg)
                     memset(cnt->current_image->image, 0x80, cnt->imgs.size);
                     mystrftime(cnt, tmpout, sizeof(tmpout), tmpin, &tmptime, NULL, 0);
                     draw_final_image_text(cnt, cnt->current_image, 10, 20 * text_size_factor,
-                              tmpout, cnt->conf.text_double);
+                        tmpout, cnt->conf.text_double);
 
                     /* Write error message only once */
                     if (cnt->missing_frame_counter == MISSING_FRAMES_TIMEOUT * cnt->conf.frame_limit) {
@@ -1788,9 +1789,9 @@ static void *motion_loop(void *arg)
             if (cnt->conf.text_left) {
                 char tmp[PATH_MAX];
                 mystrftime(cnt, tmp, sizeof(tmp), cnt->conf.text_left, 
-                           &cnt->current_image->timestamp_tm, NULL, 0);
+                    &cnt->current_image->timestamp_tm, NULL, 0);
                 draw_final_image_text(cnt, cnt->current_image, 10, cnt->imgs.height - 10 * text_size_factor,
-                           tmp, cnt->conf.text_double);
+                    tmp, cnt->conf.text_double);
             }
 
             /* Add text in lower right corner of the pictures */
@@ -3317,17 +3318,19 @@ size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *us
                 break;
 
             case 'n': // sqltype
-                if (sqltype)
+                if (sqltype) {
                     sprintf(tempstr, "%d", sqltype);
-                else
+                } else {
                     ++pos_userformat;
+                }
                 break;
 
             case 'e': // event_id
-                if (event_id)
+                if (event_id) {
                     sprintf(tempstr, "%llu", event_id);
-                else
+                } else {
                     ++pos_userformat;
+                }
                 break;
 
             default: // Any other code is copied with the %-sign

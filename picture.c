@@ -418,7 +418,7 @@ static int put_jpeg_yuv420p_memory(unsigned char *dest_image, int image_size,
 				   struct context *cnt, struct tm *tm, struct coord *box)
 
 {
-    int i, j, jpeg_image_size;
+    int i, j, jpeg_image_size, jpeg_height;
 
     JSAMPROW y[16],cb[16],cr[16]; // y[2][5] = color sample of row 2 and pixel column 5; (one plane)
     JSAMPARRAY data[3]; // t[0][2][5] = color sample 0 of row 2 and column 5
@@ -431,8 +431,7 @@ static int put_jpeg_yuv420p_memory(unsigned char *dest_image, int image_size,
     data[2] = cr;
 
     cinfo.err = jpeg_std_error(&jerr);  // Errors get written to stderr
-
-    int jpeg_height = height - (height % 16);
+    jpeg_height = height - (height % 16);
 
     jpeg_create_compress(&cinfo);
     cinfo.image_width = width;
@@ -681,7 +680,6 @@ static void put_ppm_bgr24_file(FILE *picture, unsigned char *image, int width, i
     unsigned char *u = image + width * height;
     unsigned char *v = u + (width * height) / 4;
     int r, g, b;
-    int warningkiller;
     unsigned char rgb[3];
 
     /*
@@ -724,7 +722,7 @@ static void put_ppm_bgr24_file(FILE *picture, unsigned char *image, int width, i
                 v++;
             }
             /* ppm is rgb not bgr */
-            warningkiller = fwrite(rgb, 1, 3, picture);
+            fwrite(rgb, 1, 3, picture);
         }
         if (y & 1) {
             u -= width / 2;
@@ -1135,6 +1133,12 @@ void put_fixed_mask(struct context *cnt, const char *file)
 void put_image(struct context *cnt, char* fullfilename, struct image_data * imgdat, int ftype)
 {
     if (imgdat->secondary_image && cnt->conf.output_secondary_pictures) {
+        if (cnt->conf.output_both_pictures) {
+            put_picture(cnt, fullfilename, imgdat->image, ftype);
+            fullfilename[strlen(fullfilename) - 3] = 'J';
+            fullfilename[strlen(fullfilename) - 2] = 'P';
+            fullfilename[strlen(fullfilename) - 1] = 'G';
+        }
         if (cnt->imgs.secondary_type == SECONDARY_TYPE_RAW) {
             put_sized_picture(cnt, fullfilename, imgdat->secondary_image, cnt->imgs.secondary_width, cnt->imgs.secondary_height, ftype);
         }

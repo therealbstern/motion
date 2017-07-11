@@ -2,13 +2,10 @@ INTRODUCTION
 ------------
 This file describes what tools you need to build this experimental Pi specific version of motion, and how to perform the build.
 
-The current version of the cmake script does not perform full configuration of the build, nor does it check for dependencies. 
-
 Hopefully this document should give you the information you need to get those dependencies; at some time in the future the build script should be made more capable to address this.
 
 REQUIRED TOOLS
 --------------
-* cmake 2.8.x.
 * Either native gcc and build essentials on Pi, or Pi-compatible ARM gcc cross compiler.
 * git (to obtain some Pi specific files).
 

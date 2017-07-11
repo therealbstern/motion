@@ -1221,39 +1221,56 @@ int alg_diff_standard(struct context *cnt, unsigned char *new)
     }
     else
 #endif
-    for (; i > 0; i--) {
-        register unsigned char curdiff = (int)(abs(*ref - *new)); /* Using a temp variable is 12% faster. */
-        /* Apply fixed mask */
-        if (mask)
-            curdiff = ((int)(curdiff * *mask++) / 255);
+        for (; i > 0; i--) {
+            register unsigned char curdiff = (int)(abs(*ref - *new)); /* Using a temp variable is 12% faster. */
+            /* Apply fixed mask */
+            if (mask)
+                curdiff = ((int)(curdiff * *mask++) / 255);
 
-        if (smartmask_speed) {
+            if (smartmask_speed) {
+                if (curdiff > noise) {
+                    /*
+                     * Increase smart_mask sensitivity every frame when motion
+                     * is detected. (with speed=5, mask is increased by 1 every
+                     * second. To be able to increase by 5 every second (with
+                     * speed=10) we add 5 here. NOT related to the 5 at ratio-
+                     * calculation.
+                     */
+                    if (cnt->event_nr != cnt->prev_event)
+                        (*smartmask_buffer) += SMARTMASK_SENSITIVITY_INCR;
+                    /* Apply smart_mask */
+                    if (!*smartmask_final)
+                        curdiff = 0;
+                }
+                smartmask_final++;
+                smartmask_buffer++;
+            }
+            /* Pixel still in motion after all the masks? */
             if (curdiff > noise) {
-                /*
-                 * Increase smart_mask sensitivity every frame when motion
-                 * is detected. (with speed=5, mask is increased by 1 every
-                 * second. To be able to increase by 5 every second (with
-                 * speed=10) we add 5 here. NOT related to the 5 at ratio-
-                 * calculation.
-                 */
-                if (cnt->event_nr != cnt->prev_event)
+                /* Increase smart_mask sensitivity every frame when motion is detected.
+                   With speed=5, mask is increased by 1 every second.  To be able to increase
+                   by 5 every second (with speed=10) we add 5 here. NOT related to the 5 at
+                   ratio-calculation. */
+                if (cnt->event_nr != cnt->prev_event) {
                     (*smartmask_buffer) += SMARTMASK_SENSITIVITY_INCR;
+                }
                 /* Apply smart_mask */
-                if (!*smartmask_final)
+                if (!*smartmask_final) {
                     curdiff = 0;
+                }
             }
             smartmask_final++;
             smartmask_buffer++;
+
+            /* Pixel still in motion after all the masks? */
+            if (curdiff > noise) {
+                *out = *new;
+                diffs++;
+            }
+            out++;
+            ref++;
+            new++;
         }
-        /* Pixel still in motion after all the masks? */
-        if (curdiff > noise) {
-            *out = *new;
-            diffs++;
-        }
-        out++;
-        ref++;
-        new++;
-    }
     return diffs;
 }
 
@@ -1380,8 +1397,11 @@ int alg_switchfilter(struct context *cnt, int diffs, unsigned char *newimg)
 #define EXCLUDE_LEVEL_PERCENT 20
 void alg_update_reference_frame(struct context *cnt, int action) 
 {
-    int accept_timer = cnt->lastrate * ACCEPT_STATIC_OBJECT_TIME;
     int threshold_ref;
+#ifndef ARM_OPTIMISATIONS
+    int i;
+#endif
+    unsigned char accept_timer = cnt->lastrate * ACCEPT_STATIC_OBJECT_TIME;
     int *ref_dyn = cnt->imgs.ref_dyn;
     unsigned char *image_virgin = cnt->imgs.image_virgin;
     unsigned char *ref = cnt->imgs.ref;
@@ -1397,7 +1417,7 @@ void alg_update_reference_frame(struct context *cnt, int action)
 #if defined(ARM_OPTIMISATIONS)
         alg_update_reference_frame_asm(image_virgin, ref, out, ref_dyn, smartmask, cnt->imgs.motionsize, threshold_ref, accept_timer);
 #else
-        for (int i = cnt->imgs.motionsize; i > 0; i--) {
+        for (i = cnt->imgs.motionsize; i > 0; i--) {
             /* Exclude pixels from ref frame well below noise level. */
             if (((int)(abs(*ref - *image_virgin)) > threshold_ref) && (*smartmask)) {
                 if (*ref_dyn == 0) { /* Always give new pixels a chance. */

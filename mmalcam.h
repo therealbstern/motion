@@ -11,7 +11,11 @@
 #ifndef MMALCAM_H_
 #define MMALCAM_H_
 
+#include <interface/mmal/mmal_common.h>
+#include <interface/mmal/mmal_component.h>
+#include <interface/mmal/mmal_parameters_camera.h>
 #include "mmaloutput.h"
+#include "raspicam/RaspiCamControl.h"
 
 typedef struct mmalcam_context *mmalcam_context_ptr;
 struct MMAL_BUFFER_HEADER_T;
@@ -28,7 +32,7 @@ typedef struct mmalcam_context {
 
     struct MMAL_COMPONENT_T *camera_component;
     struct MMAL_PORT_T *camera_capture_port;
-    struct RASPICAM_CAMERA_PARAMETERS *camera_parameters;
+    RASPICAM_CAMERA_PARAMETERS *camera_parameters;
     struct MMAL_COMPONENT_T *preview_component;
     struct MMAL_CONNECTION_T *preview_connection;
     struct MMAL_COMPONENT_T *splitter_component;

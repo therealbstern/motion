@@ -125,6 +125,7 @@ static MMAL_STATUS_T connect_ports(MMAL_PORT_T *source_port, MMAL_PORT_T *sink_p
 
 static int create_splitter_component(mmalcam_context_ptr mmalcam, MMAL_PORT_T *source_port)
 {
+    int i;
     MMAL_STATUS_T status;
     MMAL_COMPONENT_T *splitter_component;
     MMAL_PORT_T *input_port;
@@ -146,7 +147,7 @@ static int create_splitter_component(mmalcam_context_ptr mmalcam, MMAL_PORT_T *s
         goto error;
     }
 
-    for(int i = 0; i < splitter_component->output_num; i++)
+    for (i = 0; i < splitter_component->output_num; i++)
     {
         MMAL_PORT_T *output_port = splitter_component->output[i];
         output_port->buffer_num = 3;
@@ -528,7 +529,7 @@ int mmalcam_start(struct context *cnt)
             "%s: MMAL Camera thread starting... for camera (%s) of %d x %d at %d fps",
             cnt->conf.mmalcam_name, cnt->conf.width, cnt->conf.height, cnt->conf.frame_limit);
 
-    mmalcam->camera_parameters = (RASPICAM_CAMERA_PARAMETERS*)malloc(sizeof(RASPICAM_CAMERA_PARAMETERS));
+    mmalcam->camera_parameters = malloc(sizeof(RASPICAM_CAMERA_PARAMETERS));
     if (mmalcam->camera_parameters == NULL) {
         MOTION_LOG(ERR, TYPE_VIDEO, NO_ERRNO, "camera params couldn't be allocated");
         return MMALCAM_ERROR;

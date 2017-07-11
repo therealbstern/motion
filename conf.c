@@ -153,12 +153,13 @@ struct config conf_template = {
     netcam_tolerant_check:          0,
     rtsp_uses_tcp:                  1,
 #ifdef HAVE_MMAL
-    mmalcam_name:		    NULL,
+    mmalcam_name:                   NULL,
     mmalcam_control_params:         NULL,
     mmalcam_use_still:              0,
     mmalcam_raw_capture_file:       NULL,
     mmalcam_buffer2_upscale:        0,
     mmalcam_buffer2_jpeg:           0,
+    output_both_pictures:           0,
 #endif
     text_changes:                   0,
     text_left:                      NULL,
@@ -487,6 +488,15 @@ config_param config_params[] = {
     CONF_OFFSET(mmalcam_raw_capture_file),
     copy_string,
     print_string
+    },
+    {
+    "output_both_pictures",
+    "# Output both primary and secondary pictures\n"
+    " Default: off",
+    0,
+    CONF_OFFSET(output_both_pictures),
+    copy_bool,
+    print_bool
     },
 #endif
     {
@@ -1560,13 +1570,13 @@ config_param config_params[] = {
     "# Create tables :\n"
     "##\n"
     "# Mysql\n"
-    "# CREATE TABLE security_file (file_id int primary key auto_increment, event_id int foreign key, filename text not null, frame int, file_type int, time_stamp timestamp(14));\n"
+    "# CREATE TABLE security (file_id int primary key auto_increment, event_id int foreign key, camera int, filename text not null, frame int, file_type int, time_stamp timestamp(14), event_time_stamp timestamp(14));\n"
     "#\n"
     "# Postgresql\n"
-    "# CREATE TABLE security (camera int, filename char(80) not null, frame int, file_type int, time_stamp timestamp without time zone, event_time_stamp timestamp without time zone);\n"
+    "# CREATE TABLE security (file_id serial, event_id int, camera int, filename char(80) not null, frame int, file_type int, time_stamp timestamp without time zone, event_time_stamp timestamp without time zone);\n"
     "#\n"
     "# Default value:\n"
-    "# insert into security_file(camera, event_id, filename, frame, file_type, time_stamp) values('%t', '%n', '%f', '%q', '%n', '%Y-%m-%d %T')",
+    "# insert into security(event_id, camera, filename, frame, file_type, time_stamp, event_timestamp, text_event) values('%t', '%n', '%f', '%q', '%n', '%Y-%m-%d %T, '%C')",
     0,
     CONF_OFFSET(sql_file_query),
     copy_string,
@@ -1843,8 +1853,9 @@ static struct context **conf_process(struct context **cnt, FILE *fp)
 
             cmd = beg; /* Command starts here. */
 
-            while (*beg != ' ' && *beg != '\t' && *beg != '=' && *beg)
+            while (*beg != ' ' && *beg != '\t' && *beg != '=' && *beg) {
                 beg++;
+            }
 
             *beg = 0; /* Command string terminates here. */
 
