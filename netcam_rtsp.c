@@ -2,90 +2,6 @@
 #include "netcam_rtsp.h"
 #include "motion.h"
 
-#ifdef have_av_get_media_type_string
-
-/****************************************************
- * Duplicated static functions - FIXME
- ****************************************************/
-
-/**
- * netcam_url_free
- *
- *      General cleanup of the URL structure, called from netcam_cleanup.
- *
- * Parameters:
- *
- *      parse_url       Structure containing the parsed data.
- *
- * Returns:             Nothing
- *
- */
-static void netcam_url_free(struct url_t *parse_url)
-{
-    if (parse_url->service) {
-        free(parse_url->service);
-        parse_url->service = NULL;
-    }
-
-    if (parse_url->userpass) {
-        free(parse_url->userpass);
-        parse_url->userpass = NULL;
-    }
-
-    if (parse_url->host) {
-        free(parse_url->host);
-        parse_url->host = NULL;
-    }
-
-    if (parse_url->path) {
-        free(parse_url->path);
-        parse_url->path = NULL;
-    }
-}
-
-/**
- * netcam_check_buffsize
- *
- * This routine checks whether there is enough room in a buffer to copy
- * some additional data.  If there is not enough room, it will re-allocate
- * the buffer and adjust it's size.
- *
- * Parameters:
- *      buff            Pointer to a netcam_image_buffer structure.
- *      numbytes        The number of bytes to be copied.
- *
- * Returns:             Nothing
- */
-static void netcam_check_buffsize(netcam_buff_ptr buff, size_t numbytes)
-{
-    int min_size_to_alloc;
-    int real_alloc;
-    int new_size;
-
-    if ((buff->size - buff->used) >= numbytes)
-        return;
-
-    min_size_to_alloc = numbytes - (buff->size - buff->used);
-    real_alloc = ((min_size_to_alloc / NETCAM_BUFFSIZE) * NETCAM_BUFFSIZE);
-
-    if ((min_size_to_alloc - real_alloc) > 0)
-        real_alloc += NETCAM_BUFFSIZE;
-
-    new_size = buff->size + real_alloc;
-    
-    MOTION_LOG(DBG, TYPE_NETCAM, NO_ERRNO, "%s: expanding buffer from [%d/%d] to [%d/%d] bytes.",
-               (int) buff->used, (int) buff->size,
-               (int) buff->used, new_size);
-
-    buff->ptr = myrealloc(buff->ptr, new_size,
-                          "netcam_check_buf_size");
-    buff->size = new_size;
-}
-
-/****************************************************
- * End Duplicated static functions - FIXME
- ****************************************************/
-
 static int decode_packet(AVPacket *packet, netcam_buff_ptr buffer, AVFrame *frame, AVCodecContext *cc)
 {
   int check = 0;
@@ -254,8 +170,7 @@ static int rtsp_connect(netcam_context_ptr netcam)
   return 0;
 }
 
-static int netcam_read_rtsp_image(netcam_context_ptr netcam)
-{
+int netcam_read_rtsp_image(netcam_context_ptr netcam) {
   if (netcam->rtsp == NULL) {
     if (rtsp_connect(netcam) < 0) {
       return -1;
@@ -459,5 +374,3 @@ void netcam_reconnect_rtsp(netcam_context_ptr netcam)
 
   rtsp_connect(netcam);
 }
-
-#endif

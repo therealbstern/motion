@@ -230,8 +230,7 @@ static void netcam_url_parse(struct url_t *parse_url, const char *text_url)
  * Returns:             Nothing
  *
  */
-static void netcam_url_free(struct url_t *parse_url)
-{
+void netcam_url_free(struct url_t *parse_url) {
     if (parse_url->service) {
         free(parse_url->service);
         parse_url->service = NULL;
@@ -1029,7 +1028,6 @@ static int netcam_connect(netcam_context_ptr netcam, int err_flag)
 
     return 0;   /* Success */
 }
-
 
 /**
  * netcam_check_buffsize
