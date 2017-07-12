@@ -370,7 +370,7 @@ static void event_image_detect(struct context *cnt, int type ATTRIBUTE_UNUSED,
         else
             imagepath = DEF_IMAGEPATH;
 
-        mystrftime(cnt, filename, sizeof(filename), imagepath, currenttime_tm, NULL, 0);
+        mystrftime(cnt, filename, sizeof(filename), imagepath, currenttime_tm, NULL, 0, 0);
         snprintf(fullfilename, PATH_MAX, "%s/%s.%s", cnt->conf.filepath, filename, imageext(cnt));
 
         put_image(cnt, fullfilename, imgdat, FTYPE_IMAGE);
@@ -675,7 +675,7 @@ static void event_ffmpeg_newfile(struct context *cnt, int type ATTRIBUTE_UNUSED,
         if ((cnt->ffmpeg_output =
             ffmpeg_open((char *)cnt->conf.ffmpeg_video_codec, cnt->newfilename, y, u, v,
                          width, height, cnt->movie_fps, cnt->conf.ffmpeg_bps,
-                         cnt->conf.ffmpeg_vbr)) == NULL) {
+                         cnt->conf.ffmpeg_vbr, TIMELAPSE_NONE)) == NULL) {
             MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO, "%s: ffopen_open error creating (new) file [%s]",
                        cnt->newfilename);
             cnt->finish = 1;
@@ -700,12 +700,14 @@ static void event_ffmpeg_newfile(struct context *cnt, int type ATTRIBUTE_UNUSED,
             convbuf = NULL;
         }
 
-        if ((cnt->ffmpeg_output_debug =
-            ffmpeg_open((char *)cnt->conf.ffmpeg_video_codec, cnt->motionfilename, y, u, v,
-                         cnt->imgs.width, cnt->imgs.height, cnt->movie_fps, cnt->conf.ffmpeg_bps,
-                         cnt->conf.ffmpeg_vbr)) == NULL) {
-            MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO, "%s: ffopen_open error creating (motion) file [%s]",
-                       cnt->motionfilename);
+        cnt->ffmpeg_output_debug = ffmpeg_open(cnt->conf.ffmpeg_video_codec,
+            cnt->motionfilename, y, u, v, cnt->imgs.width, cnt->imgs.height,
+            cnt->movie_fps, cnt->conf.ffmpeg_bps, cnt->conf.ffmpeg_vbr,
+            TIMELAPSE_NEW);
+        if (cnt->ffmpeg_output_debug == NULL) {
+            MOTION_LOG(ERR, TYPE_EVENTS, SHOW_ERRNO,
+                "%s: ffopen_open error creating (motion) file [%s]",
+                cnt->motionfilename);
             cnt->finish = 1;
             return;
         }

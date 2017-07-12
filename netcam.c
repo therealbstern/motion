@@ -45,9 +45,7 @@
 #include <sys/socket.h>
 
 #include "netcam_ftp.h"
-#ifdef have_av_get_media_type_string
 #include "netcam_rtsp.h"
-#endif
 
 #define CONNECT_TIMEOUT        10     /* Timeout on remote connection attempt */
 #define READ_TIMEOUT            5     /* Default timeout on recv requests */

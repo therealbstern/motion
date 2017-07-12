@@ -40,12 +40,11 @@ VIDEO_OBJ    = @VIDEO@
 VIDEO_SRC    = $(VIDEO_OBJ:.o=.c)
 SDL_OBJ      = @SDL_OBJ@
 SDL_SRC      = $(SDL_OBJ:.o=.c)
-MOTION_OBJ   = $(FFMPEG_OBJ) $(SDL_OBJ) $(VIDEO_OBJ) alg.o conf.o \
-	       draw.o event.o filecam.o jpegutils.o logger.o md5.o \
-	       metrics.o mmalcam.o mmaloutput.o motion.o netcam.o netcam_ftp.o \
-	       netcam_jpeg.o netcam_rtsp.o netcam_wget.o picture.o rotate.o \
-	       stream.o track.o utils.o \
-	       videosourceplugin.o vloopback_motion.o webhttpd.o \
+MOTION_OBJ   = alg.o conf.o draw.o event.o filecam.o jpegutils.o logger.o \
+	       md5.o metrics.o mmalcam.o mmaloutput.o motion.o netcam.o \
+	       netcam_ftp.o netcam_jpeg.o netcam_rtsp.o netcam_wget.o \
+	       picture.o rotate.o stream.o track.o utils.o videosourceplugin.o \
+	       vloopback_motion.o webhttpd.o \
 	       raspicam/RaspiCLI.o raspicam/RaspiCamControl.o
 MOTION_SRC   = $(MOTION_OBJ:.o=.c)
 OBJ          = $(FFMPEG_OBJ) $(SDL_OBJ) $(VIDEO_OBJ) $(MOTION_OBJ) alg_arm.o

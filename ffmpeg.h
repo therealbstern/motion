@@ -57,7 +57,7 @@ void ffmpeg_init(void);
  * timelapse video, use TIMELAPSE_CODEC as codec name.
  */
 struct ffmpeg *ffmpeg_open(
-    char *ffmpeg_video_codec,
+    const char *ffmpeg_video_codec,
     char *filename,
     unsigned char *y,    /* YUV420 Y plane */
     unsigned char *u,    /* YUV420 U plane */

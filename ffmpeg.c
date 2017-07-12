@@ -86,7 +86,7 @@ void my_frame_free(AVFrame *frame){
  *      0:  File doesn't exist
  *      1:  File exists
  */
-int timelapse_exists(const char *fname){
+int timelapse_exists(const char *fname) {
     FILE *file;
     file = fopen(fname, "r");
     if (file)
@@ -97,7 +97,7 @@ int timelapse_exists(const char *fname){
     return 0;
 }
 
-int timelapse_append(struct ffmpeg *ffmpeg, AVPacket pkt){
+int timelapse_append(struct ffmpeg *ffmpeg, AVPacket pkt) {
     FILE *file;
 
     file = fopen(ffmpeg->oc->filename, "a");
@@ -124,7 +124,7 @@ void ffmpeg_init()
                LIBAVFORMAT_BUILD);
     av_register_all();
     avcodec_register_all();
-    av_log_set_callback((void *)ffmpeg_avcodec_log);
+    av_log_set_callback(ffmpeg_avcodec_log);
     av_log_set_level(AV_LOG_ERROR);
 }
 
@@ -217,11 +217,9 @@ static AVOutputFormat *get_oformat(const char *codec, char *filename)
  *  Returns
  *      A new allocated ffmpeg struct or NULL if any error happens.
  */
-struct ffmpeg *ffmpeg_open(char *ffmpeg_video_codec, char *filename,
-                           unsigned char *y, unsigned char *u, unsigned char *v,
-                           int width, int height, int rate, int bps, int vbr,
-                           int tlapse)
-{
+struct ffmpeg *ffmpeg_open(const char *ffmpeg_video_codec, char *filename,
+    unsigned char *y, unsigned char *u, unsigned char *v, int width, int height,
+    int rate, int bps, int vbr, int tlapse) {
     AVCodecContext *c;
     AVCodec *codec;
     struct ffmpeg *ffmpeg;

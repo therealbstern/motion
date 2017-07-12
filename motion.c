@@ -567,12 +567,9 @@ static void process_image_ring(struct context *cnt, unsigned int max_images)
                 else
                     t = "Other";
 
-                mystrftime(cnt, tmp, sizeof(tmp), "%H%M%S-%q", 
-                    &cnt->imgs.image_ring[cnt->imgs.image_ring_out].timestamp_tm, NULL, 0);
-                draw_final_image_text(cnt, &cnt->imgs.image_ring[cnt->imgs.image_ring_out], 10, 20,
-                    tmp, cnt->conf.text_double);
-                draw_final_image_text(cnt, &cnt->imgs.image_ring[cnt->imgs.image_ring_out], 10, 30,
-                                      t, cnt->conf.text_double);
+                mystrftime(cnt, tmp, sizeof (tmp), "%H%M%S-%q", &cnt->imgs.image_ring[cnt->imgs.image_ring_out].timestamp_tm, NULL, 0, 0);
+                draw_final_image_text(cnt, &cnt->imgs.image_ring[cnt->imgs.image_ring_out], 10, 20, tmp, cnt->conf.text_double);
+                draw_final_image_text(cnt, &cnt->imgs.image_ring[cnt->imgs.image_ring_out], 10, 30, t, cnt->conf.text_double);
             }
 
             /* Output the picture to jpegs and ffmpeg */
@@ -1527,7 +1524,7 @@ static void *motion_loop(void *arg)
 
                     localtime_r(&cnt->connectionlosttime, &tmptime);
                     memset(cnt->current_image->image, 0x80, cnt->imgs.size);
-                    mystrftime(cnt, tmpout, sizeof(tmpout), tmpin, &tmptime, NULL, 0);
+                    mystrftime(cnt, tmpout, sizeof(tmpout), tmpin, &tmptime, NULL, 0, 0);
                     draw_final_image_text(cnt, cnt->current_image, 10, 20 * text_size_factor,
                         tmpout, cnt->conf.text_double);
 
@@ -1789,7 +1786,7 @@ static void *motion_loop(void *arg)
             if (cnt->conf.text_left) {
                 char tmp[PATH_MAX];
                 mystrftime(cnt, tmp, sizeof(tmp), cnt->conf.text_left, 
-                    &cnt->current_image->timestamp_tm, NULL, 0);
+                    &cnt->current_image->timestamp_tm, NULL, 0, 0);
                 draw_final_image_text(cnt, cnt->current_image, 10, cnt->imgs.height - 10 * text_size_factor,
                     tmp, cnt->conf.text_double);
             }
@@ -1798,7 +1795,7 @@ static void *motion_loop(void *arg)
             if (cnt->conf.text_right) {
                 char tmp[PATH_MAX];
                 mystrftime(cnt, tmp, sizeof(tmp), cnt->conf.text_right, 
-                           &cnt->current_image->timestamp_tm, NULL, 0);
+                           &cnt->current_image->timestamp_tm, NULL, 0, 0);
                 draw_final_image_text(cnt, cnt->current_image, cnt->imgs.width - 10, cnt->imgs.height - 10 * text_size_factor,
                                       tmp, cnt->conf.text_double);
             }
@@ -3208,13 +3205,13 @@ int myfclose(FILE* fh)
  *
  * Returns: number of bytes written to the string s
  */
-size_t mystrftime(const struct context *cnt, char *s, size_t max, const char *userformat,
-                  const struct tm *tm, const char *filename, int sqltype)
-{
-    char formatstring[PATH_MAX] = "";
-    char tempstring[PATH_MAX] = "";
+size_t mystrftime(const struct context *cnt, char *s, size_t max,
+    const char *userformat, const struct tm *tm, const char *filename,
+    int sqltype, unsigned long long event_id) {
     char *format, *tempstr;
     const char *pos_userformat;
+    char formatstring[PATH_MAX] = "";
+    char tempstring[PATH_MAX] = "";
 
     format = formatstring;
 

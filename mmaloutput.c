@@ -24,8 +24,7 @@ static void buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
     MOTION_LOG(DBG, TYPE_VIDEO, NO_ERRNO, "%s: Output %s: buffer_callback - exit", output->name);
 }
 
-int mmal_output_init(const char* name, mmal_output* output, struct MMAL_PORT_T* port, int flags)
-{
+int mmal_output_init(const char* name, mmal_output* output, struct MMAL_PORT_T* port, int flags) {
     memset(output, 0, sizeof(mmal_output));
 
     strncpy(output->name, name, MMAL_OUTPUT_NAME_LEN);
@@ -50,8 +49,7 @@ int mmal_output_init(const char* name, mmal_output* output, struct MMAL_PORT_T* 
     return 0;
 }
 
-int mmal_output_enable(mmal_output* output)
-{
+int mmal_output_enable(mmal_output* output) {
     output->port->userdata = (struct MMAL_PORT_USERDATA_T*) output;
     MMAL_STATUS_T status = mmal_port_enable(output->port, buffer_callback);
 
@@ -63,11 +61,11 @@ int mmal_output_enable(mmal_output* output)
     return 0;
 }
 
-int mmal_output_send_buffers_to_port(mmal_output* output)
-{
+int mmal_output_send_buffers_to_port(mmal_output* output) {
+    int i;
     int num = mmal_queue_length(output->buffer_pool->queue);
 
-    for (int i = 0; i < num; i++) {
+    for (i = 0; i < num; i++) {
         MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get(output->buffer_pool->queue);
 
         if (!buffer) {

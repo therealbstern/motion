@@ -252,9 +252,8 @@ static void put_jpeg_exif(j_compress_ptr cinfo,
 
     if (cnt->conf.exif_text) {
 	    description = malloc(PATH_MAX);
-	    mystrftime(cnt, description, PATH_MAX-1,
-		        cnt->conf.exif_text,
-		        timestamp, NULL, 0);
+	    mystrftime(cnt, description, PATH_MAX - 1, cnt->conf.exif_text,
+            timestamp, NULL, 0, 0);
     } else {
 	    description = NULL;
     }
