@@ -92,7 +92,11 @@ void ffmpeg_avcodec_log(void *, int, const char *, va_list);
 
 #ifdef HAVE_FFMPEG
 AVFrame *my_frame_alloc(void);
-void my_frame_free(AVFrame *frame);
+#if (LIBAVFORMAT_VERSION_MAJOR >= 55)
+#define my_frame_free(x) { if (x != NULL) { av_frame_free(&x); x = NULL; } }
+#else
+#define my_frame_free(x) { if (x != NULL) { av_freep(&x); x = NULL; } }
+#endif
 int ffmpeg_put_frame(struct ffmpeg *, AVFrame *);
 void ffmpeg_cleanups(struct ffmpeg *);
 AVFrame *ffmpeg_prepare_frame(struct ffmpeg *, unsigned char *,

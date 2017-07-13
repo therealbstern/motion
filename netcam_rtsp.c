@@ -31,36 +31,37 @@ int netcam_check_pixfmt(netcam_context_ptr netcam) {
 
 /* netcam_rtsp_null_context: Null all the context.  */
 inline void netcam_rtsp_null_context(netcam_context_ptr netcam) {
-    netcam->rtsp->path           = NULL;
-    netcam->rtsp->user           = NULL;
-    netcam->rtsp->pass           = NULL;
-    netcam->rtsp->swsctx         = NULL;
-    netcam->rtsp->swsframe_in    = NULL;
-    netcam->rtsp->swsframe_out   = NULL;
-    netcam->rtsp->frame          = NULL;
-    netcam->rtsp->codec_context  = NULL;
-    netcam->rtsp->format_context = NULL;
 }
 
+#define XFREE(x) { if ((x) != NULL) { free(x); (x) = NULL; } }
 /* netcam_rtsp_close_context: Close all the context that could be open. */
 inline void netcam_rtsp_close_context(netcam_context_ptr netcam) {
-    if (netcam->rtsp->path          != NULL) free(netcam->rtsp->path);
-    if (netcam->rtsp->user          != NULL) free(netcam->rtsp->user);
-    if (netcam->rtsp->pass          != NULL) free(netcam->rtsp->pass);
-    if (netcam->rtsp->swsctx         != NULL) sws_freeContext(netcam->rtsp->swsctx);
-    if (netcam->rtsp->swsframe_in    != NULL) my_frame_free(netcam->rtsp->swsframe_in);
-    if (netcam->rtsp->swsframe_out   != NULL) my_frame_free(netcam->rtsp->swsframe_out);
-    if (netcam->rtsp->frame          != NULL) my_frame_free(netcam->rtsp->frame);
-    if (netcam->rtsp->codec_context  != NULL) avcodec_close(netcam->rtsp->codec_context);
-    if (netcam->rtsp->format_context != NULL) avformat_close_input(&netcam->rtsp->format_context);
-
-    netcam_rtsp_null_context(netcam);
+    if (netcam->rtsp != NULL) {
+        XFREE(netcam->rtsp->path);
+        XFREE(netcam->rtsp->user);
+        XFREE(netcam->rtsp->pass);
+        if (netcam->rtsp->swsctx != NULL) {
+            sws_freeContext(netcam->rtsp->swsctx);
+            netcam->rtsp->swsctx = NULL;
+        }
+        my_frame_free(netcam->rtsp->swsframe_in);
+        my_frame_free(netcam->rtsp->swsframe_out);
+        my_frame_free(netcam->rtsp->frame);
+        if (netcam->rtsp->frame != NULL) {
+            avcodec_close(netcam->rtsp->codec_context);
+            netcam->rtsp->frame = NULL;
+        }
+        netcam->rtsp->codec_context  = NULL;
+        if (netcam->rtsp->format_context != NULL) {
+            avformat_close_input(&netcam->rtsp->format_context);
+            netcam->rtsp->format_context = NULL;
+        }
+    }
 }
 
-/* netcam_buffsize_rtsp:
-This routine checks whether there is enough room in a buffer to copy some
-additional data.  If there is not enough room, it will re-allocate the buffer
-and adjust its size.
+/* netcam_buffsize_rtsp: This routine checks whether there is enough room in a
+buffer to copy some additional data.  If there is not enough room, it will
+reallocate the buffer and adjust its size.
 
 buff        Pointer to a netcam_image_buffer structure.
 numbytes    The number of bytes to be copied. */
@@ -69,14 +70,16 @@ static void netcam_buffsize_rtsp(netcam_buff_ptr buff, size_t numbytes) {
     int real_alloc;
     int new_size;
 
-    if ((buff->size - buff->used) >= numbytes)
+    if ((buff->size - buff->used) >= numbytes) {
         return;
+    }
 
     min_size_to_alloc = numbytes - (buff->size - buff->used);
     real_alloc = ((min_size_to_alloc / NETCAM_BUFFSIZE) * NETCAM_BUFFSIZE);
 
-    if ((min_size_to_alloc - real_alloc) > 0)
+    if ((min_size_to_alloc - real_alloc) > 0) {
         real_alloc += NETCAM_BUFFSIZE;
+    }
 
     new_size = buff->size + real_alloc;
 
@@ -178,7 +181,7 @@ static int open_codec_context(int *stream_idx, AVFormatContext *fmt_ctx,
 
 /* rtsp_new_context: Create a new RTSP context structure.
 Returns a pointer to the newly-created structure, or NULL on error. */
-static struct rtsp_context *rtsp_new_context(void) {
+struct rtsp_context *rtsp_new_context(void) {
     struct rtsp_context *ret;
 
     /* Note that mymalloc will exit on any problem. */
@@ -721,7 +724,7 @@ int netcam_setup_rtsp(netcam_context_ptr netcam, struct url_t *url) {
     server, so we try... */
     ret = netcam_connect_rtsp(netcam);
     if (ret < 0) {
-        rtsp_free_context(netcam->rtsp);
+        netcam_rtsp_close_context(netcam);
         netcam->rtsp = NULL;
         return ret;
     }
@@ -762,4 +765,20 @@ int netcam_next_rtsp(unsigned char *image , netcam_context_ptr netcam) {
         "%s: FFmpeg/Libav not found on computer.  No RTSP support");
     return -1;
 #endif
+}
+
+void netcam_reconnect_rtsp(netcam_context_ptr netcam) {
+    if (netcam->rtsp == NULL) {
+        /* incorrect calling sequence */
+        return;
+    }
+#ifdef HAVE_FFMPEG
+    if (netcam->rtsp->format_context != NULL) {
+        avformat_close_input(&netcam->rtsp->format_context);
+    }
+    if (netcam->rtsp->codec_context != NULL) {
+        avcodec_close(netcam->rtsp->codec_context);
+    }
+#endif
+    netcam_connect_rtsp(netcam);
 }

@@ -4445,7 +4445,7 @@ $as_echo "not found" >&6; }
 #
 
 	if  test "${FFMPEG_OK}" = "found"; then
-        TEMP_LIBS="$TEMP_LIBS -lavformat -lavcodec -lavutil -lm -lz"
+        TEMP_LIBS="$TEMP_LIBS -lavformat -lavcodec -lavutil -lswscale -lm -lz"
         TEMP_LDFLAGS="${TEMP_LDFLAGS} -L${FFMPEG_LIB}"
         TEMP_CFLAGS="${TEMP_CFLAGS} -DHAVE_FFMPEG ${FFMPEG_CFLAGS}"
 

@@ -60,7 +60,7 @@
 #define MY_CODEC_ID_HEVC      CODEC_ID_H264
 #endif
 
-AVFrame *my_frame_alloc(void){
+AVFrame *my_frame_alloc(void) {
     AVFrame *pic;
 #if (LIBAVFORMAT_VERSION_MAJOR >= 55)
     pic = av_frame_alloc();
@@ -70,43 +70,15 @@ AVFrame *my_frame_alloc(void){
     return pic;
 }
 
-void my_frame_free(AVFrame *frame){
-#if (LIBAVFORMAT_VERSION_MAJOR >= 55)
-    av_frame_free(&frame);
-#else
-    av_freep(&frame);
-#endif
-}
-
-/**
- * timelapse_exists
- *      Determines whether the timelapse file exists
- *
- * Returns
- *      0:  File doesn't exist
- *      1:  File exists
- */
-int timelapse_exists(const char *fname) {
-    FILE *file;
-    file = fopen(fname, "r");
-    if (file)
-    {
-        fclose(file);
-        return 1;
-    }
-    return 0;
-}
-
 int timelapse_append(struct ffmpeg *ffmpeg, AVPacket pkt) {
     FILE *file;
 
     file = fopen(ffmpeg->oc->filename, "a");
-    if (!file) return -1;
-
-    fwrite(pkt.data,1,pkt.size,file);
-
+    if (file == NULL) {
+        return -1;
+    }
+    fwrite(pkt.data, 1, pkt.size, file);
     fclose(file);
-
     return 0;
 }
 
@@ -372,7 +344,7 @@ struct ffmpeg *ffmpeg_open(const char *ffmpeg_video_codec, char *filename,
     ffmpeg->picture->linesize[2] = ffmpeg->c->width / 2;
 
     /* Open the output file, if needed. */
-    if ((timelapse_exists(filename) == 0) || (ffmpeg->tlapse != TIMELAPSE_APPEND)) {
+    if ((access(filename, W_OK) == 0) || (ffmpeg->tlapse != TIMELAPSE_APPEND)) {
         if (!(ffmpeg->oc->oformat->flags & AVFMT_NOFILE)) {
             if (avio_open(&ffmpeg->oc->pb, filename, MY_FLAG_WRITE) < 0) {
                 if (errno == ENOENT) {

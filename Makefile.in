@@ -54,6 +54,8 @@ EXAMPLES     = *.conf motion.init-Debian motion.init-Fedora motion.init-FreeBSD.
 PROGS        = motion
 DEPEND_FILE  = .depend
 
+.PHONY: all progs pre-build-info motion-objects pre-mobject-info dep depend fastdep
+
 ################################################################################
 # ALL and PROGS build Motion and, possibly, Motion-control.                    #
 ################################################################################
