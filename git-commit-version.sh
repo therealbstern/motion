@@ -1,5 +1,4 @@
 #!/bin/sh
 
-SNV_VERSION=`git show -s --format=%H`
-echo -n "Git-$SNV_VERSION"
-
+SNV_VERSION=`git show -s --format=%h`
+echo "Git-$SNV_VERSION"
