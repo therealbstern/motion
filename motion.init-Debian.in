@@ -1,69 +1,124 @@
-#! /bin/bash
+#!/bin/sh -e
 #
-# @PACKAGE_NAME@ @PACKAGE_VERSION@	
-# Start the motion detection .
+# /etc/init.d/motion: Start the motion detection
 #
+### BEGIN INIT INFO
+# Provides:	  motion
+# Required-Start: $local_fs $syslog $remote_fs
+# Required-Stop: $remote_fs
+# Default-Start:  2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start Motion detection
+# Description: loads motion and assigns privileges
+### END INIT INFO
+
+# Ported to new debian way using sh and /lib/lsb/init-functions
+# by Angel Carpintero <ack@telefonica.net>
+# Modified by : Juan Angulo Moreno <juan@apuntale.com>
+#               Eddy Petrisor <eddy.petrisor@gmail.com>
+#               ArAge <ArAge@gmx.co.uk>
+
+# @PACKAGE_NAME@ @PACKAGE_VERSION@
 
 NAME=@PACKAGE_NAME@
-PATH=/bin:/usr/bin:/sbin:/usr/sbin
+PATH_BIN=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=@BIN_PATH@/@PACKAGE_NAME@
+DEFAULTS=/etc/default/$NAME
+DESC="motion detection daemon"
 PIDFILE=/var/run/@PACKAGE_NAME@/$NAME.pid
 
+ENV="env -i LANG=C PATH=$PATH_BIN"
 
-trap "" 1
-export LANG=C
-export PATH
+. /lib/lsb/init-functions
 
-test -f $DAEMON || exit 0
+test -x $DAEMON || exit 0
+
+RET=0
+
+[ -r "$DEFAULTS" ] && . "$DEFAULTS" || start_motion_daemon=yes
+
+
+check_daemon_enabled () {
+    if [ "$start_motion_daemon" = "yes" ] ; then
+        return 0
+    else
+        log_warning_msg "Not starting $NAME daemon, disabled via /etc/default/$NAME"
+        return 1
+    fi
+
+}
 
 
 case "$1" in
   start)
-    echo "Starting @PACKAGE_NAME@ detection : $NAME"
-    start-stop-daemon --start --pidfile $PIDFILE --exec $DAEMON --chuid motion
+    if check_daemon_enabled ; then
+        if ! [ -d /var/run/motion ]; then
+            mkdir -m 02750 /var/run/motion
+            chown motion:motion /var/run/motion
+        fi
+        if ! [ -d /var/lib/motion ]; then
+            mkdir -m 02750 /var/lib/motion
+            chown motion:adm /var/lib/motion
+        fi
+        if ! [ -d /var/log/motion ]; then
+            mkdir -m 02750 /var/log/motion
+            chown motion:adm /var/log/motion
+        fi
+        log_daemon_msg "Starting $DESC" "$NAME"
+        if start-stop-daemon --start --oknodo --exec $DAEMON -b --chuid motion ; then
+            log_end_msg 0
+        else
+            log_end_msg 1
+            RET=1
+        fi
+    fi
     ;;
 
   stop)
-    echo "Stopping @PACKAGE_NAME@ detection : $NAME"
-    start-stop-daemon --stop --pidfile $PIDFILE --oknodo --exec $DAEMON --retry 30 
+    log_daemon_msg "Stopping $DESC" "$NAME"
+    if start-stop-daemon --stop --oknodo --exec $DAEMON --retry 30 ; then
+        log_end_msg 0
+    else
+        log_end_msg 1
+        RET=1
+    fi
     ;;
 
-  status)
-    echo "Status @PACKAGE_NAME@ detection : $NAME"
-    if (test -f $PIDFILE); then
-        echo -n "Running process for $NAME : "
-    	pidof $NAME  
+  reload|force-reload)
+    log_daemon_msg "Reloading $NAME configuration"
+    if start-stop-daemon --stop --signal HUP --exec $DAEMON ; then
+        log_end_msg 0
     else
-    	echo "Stopped"
+        log_end_msg 1
+        RET=1
     fi
-    ;;  
-    
-  reload-config)
-    echo "Reloading $NAME configuration"
-    start-stop-daemon --stop --pidfile $PIDFILE --signal HUP --exec $DAEMON
     ;;
 
   restart-motion)
-    echo "Restarting $NAME"
-    start-stop-daemon --stop --pidfile $PIDFILE --oknodo --exec $DAEMON  --retry 30
-    start-stop-daemon --start --pidfile $PIDFILE --exec $DAEMON --chuid motion
+    if check_daemon_enabled ; then
+        log_action_begin_msg "Restarting $NAME"
+        if $0 stop && $0 start ; then
+            log_action_end_msg 0
+        else
+            log_action_cont_msg "(failed)"
+            RET=1
+        fi
+    fi
     ;;
 
   restart)
     $0 restart-motion
-    exit $?
+    ;;
+
+  status)
+    status_of_proc /usr/bin/motion motion
     ;;
 
   *)
-    echo "Usage: /etc/init.d/$NAME {start|stop|status|reload-config|restart}"
-    exit 1
+    echo "Usage: /etc/init.d/$NAME {start|stop|restart|reload|status}"
+    RET=1
     ;;
 esac
 
-if [ $? == 0 ]; then
-	echo .
-	exit 0
-else
-	echo failed
-	exit 1
-fi
+
+exit $RET
