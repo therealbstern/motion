@@ -2,3 +2,4 @@
 .svn/
 *.o
 cmakebuild
+autom4te.cache/
