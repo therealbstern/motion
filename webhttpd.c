@@ -18,9 +18,6 @@
 
 pthread_mutex_t httpd_mutex;
 
-// This is a dummy variable use to kill warnings when not checking sscanf and similar functions
-int warningkill;
-
 static const char *ini_template =
     "<html><head><title>Motion "VERSION"</title></head>\n"
     "<body>\n";
@@ -357,7 +354,7 @@ static void url_decode(char *urlencoded, size_t length)
             c[1] = *data;
             c[2] = 0;
 
-            warningkill = sscanf(c, "%x", &i);
+            sscanf(c, "%x", &i);
 
             if (i < 128) {
                 *urldecoded++ = (char)i;
@@ -394,7 +391,7 @@ static unsigned int config(char *pointer, char *res, unsigned int length_uri,
     unsigned int i;
     struct context **cnt = userdata;
 
-    warningkill = sscanf(pointer, "%255[a-z]%c", command , &question);
+    sscanf(pointer, "%255[a-z]%c", command , &question);
     if (!strcmp(command, "list")) {
         pointer = pointer + 4;
         length_uri = length_uri - 4;
@@ -2204,9 +2201,14 @@ static unsigned int read_client(int client_socket, void *userdata, char *auth)
 {
     unsigned int alive = 1;
     unsigned int ret = 1;
-    char buffer[1024] = {'\0'};
-    ssize_t length = 1023;
     struct context **cnt = userdata;
+    char buffer[1024] = { 0 };
+    char response[1024] = { 0 };
+    char method[10] = { 0 };
+    char url[512] = { 0 };
+    char protocol[10] = { 0 };
+    char *end_auth = NULL;
+    char *authentication = NULL;
 
     /* lock the mutex */
     pthread_mutex_lock(&httpd_mutex);
@@ -2214,35 +2216,31 @@ static unsigned int read_client(int client_socket, void *userdata, char *auth)
     while (alive) {
         ssize_t nread = 0, readb = -1;
 
-        nread = read_nonblock(client_socket, buffer, length);
+        nread = read_nonblock(client_socket, buffer, sizeof (buffer) - 1);
 
         if (nread <= 0) {
             MOTION_LOG(ERR, TYPE_STREAM, SHOW_ERRNO, "%s: motion-httpd First Read Error");
             pthread_mutex_unlock(&httpd_mutex);
             return 1;
         } else {
-            char method[10]={'\0'};
-            char url[512]={'\0'};
-            char protocol[10]={'\0'};
-            char *authentication=NULL;
-
             buffer[nread] = '\0';
 
-            warningkill = sscanf(buffer, "%9s %511s %9s", method, url, protocol);
-
-            if (warningkill != 3) {
-                if (cnt[0]->conf.webcontrol_html_output)
-                    warningkill = write_nonblock(client_socket, bad_request_response,
-                                  sizeof (bad_request_response));
-                else
-                    warningkill = write_nonblock(client_socket, bad_request_response_raw,
-                                  sizeof (bad_request_response_raw));
+            if (sscanf(buffer, "%9s %511s %9s", method, url, protocol) != 3) {
+                if (cnt[0]->conf.webcontrol_html_output) {
+                    write_nonblock(client_socket, bad_request_response,
+                        sizeof (bad_request_response));
+                } else {
+                    write_nonblock(client_socket, bad_request_response_raw,
+                        sizeof (bad_request_response_raw));
+                }
                 pthread_mutex_unlock(&httpd_mutex);
                 return 1;
             }
 
-            while ((strstr(buffer, "\r\n\r\n") == NULL) && (readb != 0) && (nread < length)) {
-                readb = read_nonblock(client_socket, buffer+nread, sizeof (buffer) - nread);
+            while ((strstr(buffer, "\r\n\r\n") == NULL) && (readb != 0) &&
+                (nread < (sizeof (buffer) - 1))) {
+                readb = read_nonblock(client_socket, buffer + nread,
+                    sizeof (buffer) - nread);
 
                 if (readb == -1) {
                     nread = -1;
@@ -2251,84 +2249,84 @@ static unsigned int read_client(int client_socket, void *userdata, char *auth)
 
                 nread += readb;
 
-                if (nread > length) {
-                    MOTION_LOG(WRN, TYPE_STREAM, SHOW_ERRNO, "%s: motion-httpd End buffer"
-                               " reached waiting for buffer ending");
+                if (nread > (sizeof (buffer) - 1)) {
+                    MOTION_LOG(WRN, TYPE_STREAM, SHOW_ERRNO,
+                        "%s: motion-httpd End buffer reached waiting for buffer ending");
                     break;
                 }
                 buffer[nread] = '\0';
             }
 
-            /*
-             * Make sure the last read didn't fail.  If it did, there's a
-             * problem with the connection, so give up.
-             */
+            /* Make sure the last read didn't fail.  If it did, there's a
+            problem with the connection, so give up. */
             if (nread == -1) {
-                MOTION_LOG(ERR, TYPE_STREAM, SHOW_ERRNO, "%s: motion-httpd READ give up!");
+                MOTION_LOG(ERR, TYPE_STREAM, SHOW_ERRNO,
+                    "%s: motion-httpd READ give up!");
                 pthread_mutex_unlock(&httpd_mutex);
                 return 1;
             }
             alive = 0;
 
             /* Check Protocol */
-            if (strcmp(protocol, "HTTP/1.0") && strcmp (protocol, "HTTP/1.1")) {
-                /* We don't understand this protocol.  Report a bad response.  */
-                if (cnt[0]->conf.webcontrol_html_output)
-                    warningkill = write_nonblock(client_socket, bad_request_response,
-                                  sizeof (bad_request_response));
-                else
-                    warningkill = write_nonblock(client_socket, bad_request_response_raw,
-                                  sizeof (bad_request_response_raw));
+            if (strcmp(protocol, "HTTP/1.0") && strcmp(protocol, "HTTP/1.1")) {
+                /* We don't understand this protocol.  Report a bad response. */
+                if (cnt[0]->conf.webcontrol_html_output) {
+                    write_nonblock(client_socket, bad_request_response,
+                        sizeof (bad_request_response));
+                } else {
+                    write_nonblock(client_socket, bad_request_response_raw,
+                        sizeof (bad_request_response_raw));
+                }
 
                 pthread_mutex_unlock(&httpd_mutex);
                 return 1;
             }
 
             if (strcmp (method, "GET")) {
-                /*
-                 * This server only implements the GET method.  If client
-                 * uses other method, report the failure.
-                 */
-                char response[1024];
-                if (cnt[0]->conf.webcontrol_html_output)
-                    snprintf(response, sizeof (response), bad_method_response_template, method);
-                else
-                    snprintf(response, sizeof (response), bad_method_response_template_raw, method);
-                warningkill = write_nonblock(client_socket, response, strlen(response));
+                /* This server only implements the GET method.  If client uses
+                other method, report the failure. */
+                if (cnt[0]->conf.webcontrol_html_output) {
+                    snprintf(response, sizeof (response),
+                        bad_method_response_template, method);
+                } else {
+                    snprintf(response, sizeof (response),
+                        bad_method_response_template_raw, method);
+                }
+                response[sizeof (response) - 1] = 0;
+                write_nonblock(client_socket, response, strlen(response));
                 pthread_mutex_unlock(&httpd_mutex);
                 return 1;
             }
 
             if (auth != NULL) {
                 if ((authentication = strstr(buffer,"Basic"))) {
-                    char *end_auth = NULL;
                     authentication = authentication + 6;
 
-                    if ((end_auth  = strstr(authentication,"\r\n"))) {
+                    if ((end_auth = strstr(authentication, "\r\n"))) {
                         authentication[end_auth - authentication] = '\0';
                     } else {
-                        char response[1024];
-                        snprintf(response, sizeof (response), request_auth_response_template, method);
-                        warningkill = write_nonblock(client_socket, response, strlen(response));
+                        snprintf(response, sizeof (response),
+                            request_auth_response_template, method);
+                        write_nonblock(client_socket, response, strlen(response));
                         pthread_mutex_unlock(&httpd_mutex);
                         return 1;
                     }
 
                     if (strcmp(auth, authentication)) {
-                        char response[1024] = {'\0'};
                         snprintf(response, sizeof (response), request_auth_response_template, method);
-                        warningkill = write_nonblock(client_socket, response, strlen(response));
+                        write_nonblock(client_socket, response, strlen(response));
                         pthread_mutex_unlock(&httpd_mutex);
                         return 1;
                     } else {
                         ret = handle_get(client_socket, url, cnt);
-                        /* A valid auth request.  Process it.  */
+                        /* A valid auth request.  Process it. */
                     }
                 } else {
                     // Request Authorization
-                    char response[1024] = {'\0'};
-                    snprintf(response, sizeof (response), request_auth_response_template, method);
-                    warningkill = write_nonblock(client_socket, response, strlen(response));
+                    snprintf(response, sizeof (response),
+                        request_auth_response_template, method);
+                    response[sizeof (response) - 1] = 0;
+                    write_nonblock(client_socket, response, strlen(response));
                     pthread_mutex_unlock(&httpd_mutex);
                     return 1;
                 }
@@ -2413,9 +2411,12 @@ void httpd_run(struct context **cnt)
 #endif
     hints.ai_socktype = SOCK_STREAM;
 
-    snprintf(portnumber, sizeof(portnumber), "%u", cnt[0]->conf.webcontrol_port);
+    snprintf(portnumber, sizeof (portnumber), "%u",
+        cnt[0]->conf.webcontrol_port);
+    portnumber[sizeof (portnumber) - 1] = 0;
 
-    val = getaddrinfo(cnt[0]->conf.webcontrol_localhost ? "localhost" : NULL, portnumber, &hints, &res);
+    val = getaddrinfo(cnt[0]->conf.webcontrol_localhost ? "localhost" : NULL,
+        portnumber, &hints, &res);
 
     /* check != 0 to allow FreeBSD compatibility */
     if (val != 0) {
